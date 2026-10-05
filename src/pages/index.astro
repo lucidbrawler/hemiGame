@@ -1,0 +1,179 @@
+---
+export const prerender = true;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Relay Zones</title>
+  <link rel="icon" href="/assets/ui/hemi.png" />
+  <link rel="stylesheet" href="/game.css" />
+</head>
+<body>
+  <section id="select">
+    <div class="select-wrap">
+      <p class="eyebrow" id="zone-count">Three Hemi stages</p>
+      <h1>Pick a map</h1>
+      <p class="lede">
+        Pick Hemigo or Orami, then pick a map. Space jumps. E swings, chops, or fires.
+        The mouse wheel cycles weapons you have found. Hold Q to raise a shield.
+        F confirms the post at the top. Armor is lying on the ground.
+        I pauses the run so you can equip it and look at it.
+        An open gate brings you back here.
+      </p>
+      <p id="select-note" class="select-note" hidden></p>
+      <div class="runners" id="runners">
+        <button type="button" class="runner is-picked" data-hero="hemigo" id="pick-hemigo" aria-pressed="true">
+          <img src="/assets/pilot.png" alt="" />
+          <span class="runner-name">Hemigo</span>
+          <span class="runner-role">Empty hands. The sword, the plate, and the shield are on the ground.</span>
+        </button>
+        <button type="button" class="runner" data-hero="orami" id="pick-orami" aria-pressed="false">
+          <img src="/assets/orami/idle.png" alt="" />
+          <span class="runner-name">Orami</span>
+          <span class="runner-role">The orange suit. Same jump, same weapons, same three rises.</span>
+        </button>
+      </div>
+      <div class="zones">
+        <button type="button" id="start-hemi" class="zone-pick hemi">
+          <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
+          <span class="zone-title">Hemi Rise</span>
+          <span class="zone-blurb">The short Hemi rise. Librarians pace and hop. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
+        </button>
+        <button type="button" id="start-wart" class="zone-pick wart">
+          <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
+          <span class="zone-title">Hemi Span</span>
+          <span class="zone-blurb">A longer hall and a taller shaft. More librarians, more fireballs, and a tougher boss at the door.</span>
+        </button>
+        <button type="button" id="start-cart" class="zone-pick cart">
+          <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
+          <span class="zone-title">Hemi Deep</span>
+          <span class="zone-blurb">The long shaft, a low ceiling, a wisp, and the hardest Shard or Hex. The door waits behind that fight.</span>
+        </button>
+      </div>
+      <div class="pilot-card">
+        <div>
+          <div class="armory">
+            <figure>
+              <img src="/assets/gold/18.png" alt="" />
+              <figcaption>Sword</figcaption>
+            </figure>
+            <figure>
+              <img src="/assets/weapons/axe.png" alt="" />
+              <figcaption>Axe</figcaption>
+            </figure>
+            <figure>
+              <img src="/assets/weapons/rifle.png" alt="" />
+              <figcaption>Rifle</figcaption>
+            </figure>
+          </div>
+          <div class="armory armor-row">
+            <figure>
+              <img src="/assets/gold/06.png" alt="" />
+              <figcaption>Gold helm · harder hits</figcaption>
+            </figure>
+            <figure>
+              <img src="/assets/gold/10.png" alt="" />
+              <figcaption>Gold plate · harder hits</figcaption>
+            </figure>
+            <figure>
+              <img src="/assets/blue/01.png" alt="" />
+              <figcaption>Blue helm · faster run</figcaption>
+            </figure>
+            <figure>
+              <img src="/assets/blue/09.png" alt="" />
+              <figcaption>Blue plate · faster swings</figcaption>
+            </figure>
+          </div>
+        </div>
+        <p class="hero-stat">Space jumps. E attacks. Hold Q to guard. Mouse wheel cycles weapons. F or right-click confirms. I opens armor.</p>
+      </div>
+      <p class="controls-blurb kb">
+        Desktop: A D or arrows move · Space jump · E attack · hold Q shield · mouse wheel swaps weapons · F uses · I armor. The thumb stick works with a mouse too.
+      </p>
+      <p class="controls-blurb touch-only">
+        Thumb stick on the left. Guard, Jump, Hit, and Use on the right. Bag is in the top bar.
+      </p>
+      <div id="select-chips" class="chips" aria-live="polite"></div>
+      <p id="best-score" class="best-score" hidden></p>
+      <p class="fine">
+        Hemi Rise, Hemi Span, and Hemi Deep are the same kind of rise, and each one is harder.
+        The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
+        An even block puts a Shard just behind the gate. An odd block puts a Hex there.
+        The door stays shut until that boss drops. Librarians pace their ground and hop.
+        The page score follows the public Warthog DeFi height. The gather line names the public Cartesi orbit.
+        The chips stay on screen and stay read-only. Nothing here signs or spends.
+      </p>
+    </div>
+  </section>
+
+  <section id="play" hidden>
+    <header id="hud">
+      <div class="hud-top">
+        <div id="zone-name" class="zone-name">Hemi Rise</div>
+        <div id="vital" class="vital" title="Health"></div>
+        <div id="score" class="score">0</div>
+        <div id="inv" class="inv"></div>
+        <button type="button" id="bag-open" class="quit bag-btn">Bag</button>
+        <button type="button" id="quit" class="quit">Quit</button>
+      </div>
+      <div id="goal" class="goal"></div>
+      <div id="chips" class="chips" aria-live="polite"></div>
+    </header>
+    <div id="stage">
+      <div id="frame">
+        <canvas id="view" width="480" height="270"></canvas>
+        <div id="toast" role="status"></div>
+        <div id="prompt"></div>
+        <div id="stick-zone" aria-label="Thumb stick">
+          <div id="stick-base"></div>
+          <div id="stick-thumb"></div>
+        </div>
+        <div class="pads">
+          <button type="button" id="btn-shield" class="pad pad-shield">Guard</button>
+          <button type="button" id="btn-use" class="pad pad-use">Use</button>
+          <button type="button" id="btn-hit" class="pad pad-hit">Hit</button>
+          <button type="button" id="btn-jump" class="pad pad-jump">Jump</button>
+        </div>
+        <p class="kb frame-hint">Space jump · E hit · hold Q shield · wheel swaps · F uses · I armor</p>
+      </div>
+    </div>
+    <div id="bag" class="bag" hidden>
+      <div class="bag-card" role="dialog" aria-modal="true" aria-labelledby="bag-title">
+        <p class="eyebrow">Paused</p>
+        <h2 id="bag-title">Armor</h2>
+        <p class="bag-help">The zone is frozen. Click a piece you have found to wear it. Click it again to take it off. I or Esc goes back.</p>
+        <div class="bag-look">
+          <img id="bag-pilot" src="/assets/pilot.png" alt="" />
+          <div class="look-slot">
+            <img id="bag-chest" alt="" hidden />
+            <p id="bag-chest-empty">No plate</p>
+          </div>
+          <div class="look-slot">
+            <img id="bag-helm" alt="" hidden />
+            <p id="bag-helm-empty">No helm</p>
+          </div>
+        </div>
+        <p id="bag-caption"></p>
+        <p id="bag-stat" class="bag-stat"></p>
+        <div id="bag-grid" class="bag-grid"></div>
+        <button type="button" id="bag-close" class="start">Back to the zone</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="win" hidden>
+    <div class="select-wrap">
+      <p id="win-eyebrow" class="eyebrow">Hemi Rise clear</p>
+      <h1 id="win-title">Relay confirmed</h1>
+      <p id="win-copy" class="lede"></p>
+      <div id="win-chips" class="chips"></div>
+      <button type="button" id="again" class="start">Run it again</button>
+    </div>
+  </section>
+
+  <pre id="sim-out" hidden></pre>
+  <script is:inline src="/game.js"></script>
+</body>
+</html>
