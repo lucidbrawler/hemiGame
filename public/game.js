@@ -1,6 +1,7 @@
 /**
  * Relay Zones.
- * Three Hemi stages: Hemi Rise, Hemi Span, Hemi Deep. Each is longer and harder.
+ * Five Hemi stages: Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, Hemi Crown.
+ * Each one is longer and harder. Gale and Crown skimmers fire down on a slant.
  * Space jumps. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
  * F confirms the relay. I pauses on the armor bag. Chain chips are display-only.
  * Health is five Hemi marks. Gold armor hits harder. Blue armor is faster.
@@ -19,7 +20,7 @@ const HEMIGO = {
   name: 'Hemigo',
   maxHp: 5,
   speed: 146,
-  jumpV: 460,
+  jumpV: 500,
   range: 36,
   body: 'assets/pilot.png',
   slash: '#ffe7a3',
@@ -31,7 +32,7 @@ const ORAMI = {
   name: 'Orami',
   maxHp: 5,
   speed: 146,
-  jumpV: 460,
+  jumpV: 500,
   range: 36,
   body: 'assets/orami/idle.png',
   slash: '#ffb15a',
@@ -40,6 +41,7 @@ ORAMI.single = HEMIGO.single;
 
 const HEROES = { hemigo: HEMIGO, orami: ORAMI, pilot: HEMIGO };
 const HERO_KEY = 'relay-zone-hero';
+const WEAR_KEY = 'relay-zone-wear';
 const ORAMI_WALK_N = 9;
 const KIT_WALK_N = 8;
 const KIT_IDLE_HAND = { x: 11, y: -24 };
@@ -113,6 +115,7 @@ const PAL = {
   hemi: { body: '#2f6ea8', top: '#7ee7ff', mortar: '#17385c' },
   cart: { body: '#7a44a8', top: '#e0b0ff', mortar: '#3d2058' },
   ceil: { body: '#3a354c', top: '#8d86a8', mortar: '#221e30' },
+  glide: { body: '#245c78', top: '#d6ff4a', mortar: '#123246' },
 };
 
 const qs = new URLSearchParams(location.search);
@@ -124,6 +127,8 @@ const el = {
   startHemi: document.getElementById('start-hemi'),
   startWart: document.getElementById('start-wart'),
   startCart: document.getElementById('start-cart'),
+  startGale: document.getElementById('start-gale'),
+  startCrown: document.getElementById('start-crown'),
   selectNote: document.getElementById('select-note'),
   zoneCount: document.getElementById('zone-count'),
   again: document.getElementById('again'),
@@ -274,9 +279,10 @@ function placeEmber(id, name, x) {
   return foe;
 }
 
-function placeFlyer(id, x) {
+function placeFlyer(id, x, shoot) {
   const y = G - 98;
   const seed = Math.abs(Math.round(x));
+  const span = shoot ? 118 : 78;
   return {
     id,
     kind: 'flyer',
@@ -288,15 +294,18 @@ function placeFlyer(id, x) {
     h: 20,
     hp: 3,
     max: 3,
-    minX: x - 78,
-    maxX: x + 78,
+    minX: x - span,
+    maxX: x + span,
     dir: seed % 2 === 0 ? 1 : -1,
-    speed: 32 + (seed % 5) * 3,
+    speed: (shoot ? 44 : 32) + (seed % 5) * 3,
     phase: (seed % 7) * 0.55,
+    bob: shoot ? 12 : 7,
     sprite: 'assets/flyer/glide.png',
     flap: 'assets/flyer/flap.png',
     drawH: 46,
     plated: false,
+    shoot: !!shoot,
+    cooldown: shoot ? 0.55 + (seed % 6) * 0.2 : 0,
   };
 }
 
@@ -316,13 +325,28 @@ function buildStage(tier) {
   const topX = ledge0 + (shafts - 1) * ledgeStep;
   const topY = G - SHAFT * shafts;
   const topEnd = topX + ledgeW;
-  const preGate = tier >= 3 ? 880 : 580;
+  const preGate = tier >= 5 ? 1200 : tier >= 4 ? 1040 : tier >= 3 ? 880 : 580;
   const gateX = topEnd + preGate;
   const exitX = gateX + 340;
-  const names = ['', 'Hemi Rise', 'Hemi Span', 'Hemi Deep'];
-  const doors = ['', 'RISE', 'SPAN', 'DEEP'];
-  const zones = ['', 'hemi', 'wart', 'cart'];
+  const names = ['', 'Hemi Rise', 'Hemi Span', 'Hemi Deep', 'Hemi Gale', 'Hemi Crown'];
+  const doors = ['', 'RISE', 'SPAN', 'DEEP', 'GALE', 'CROWN'];
+  const zones = ['', 'hemi', 'wart', 'cart', 'gale', 'crown'];
   const one = (id, x, y, w, h) => ({ id, x, y, w, h, oneWay: true, kind: 'hemi' });
+  const glide = (id, x, y, w, slide, phase, bob) => ({
+    id,
+    x,
+    y,
+    homeX: x,
+    homeY: y,
+    w,
+    h: 14,
+    oneWay: true,
+    kind: 'glide',
+    slide,
+    phase,
+    rate: 0.9,
+    bob: bob || 0,
+  });
   const platforms = [
     one('a', 0, G, aW, 180),
     one('b', bX, G, bW, 180),
@@ -334,6 +358,16 @@ function buildStage(tier) {
   }
   if (tier >= 3) {
     platforms.push({ id: 'ceil', x: hallX + 2050, y: G - 78, w: 640, h: 22, oneWay: false, kind: 'ceil' });
+  }
+  if (tier >= 4) {
+    platforms.push(glide('glide-a', hallX + 1100, G - 64, 168, 92, 0.2, 6));
+    platforms.push(glide('glide-b', hallX + 3340, G - 58, 156, 84, 1.6, 4));
+    platforms.push({ id: 'ceil-b', x: hallX + 4180, y: G - 86, w: 500, h: 20, oneWay: false, kind: 'ceil' });
+  }
+  if (tier >= 5) {
+    platforms.push(glide('glide-c', hallX + 5280, G - 66, 160, 80, 0.8, 6));
+    platforms.push(glide('glide-d', hallX + 6020, G - 118, 140, 70, 2.2, 0));
+    platforms.push({ id: 'ceil-c', x: hallX + 7240, y: G - 96, w: 420, h: 18, oneWay: false, kind: 'ceil' });
   }
   const plateX = hallX + 860;
   const items = [
@@ -360,6 +394,12 @@ function buildStage(tier) {
   }
   if (tier >= 3) {
     enemies.push(librarian('lib-h5', hallX + 4900, hallX + 4720, hallX + 5140, 4 + tier, pace + 8, null));
+  }
+  if (tier >= 4) {
+    enemies.push(librarian('lib-h6', hallX + 5600, hallX + 5420, hallX + 5840, 4 + tier, pace + 8, null));
+  }
+  if (tier >= 5) {
+    enemies.push(librarian('lib-h7', hallX + 6800, hallX + 6620, hallX + 7100, 5 + tier, pace + 10, null));
   }
   enemies.push({
     id: 'plate',
@@ -388,13 +428,18 @@ function buildStage(tier) {
   enemies.push(placeEmber('cinder', 'Cinder', hallX + 1760));
   if (tier >= 2) enemies.push(placeEmber('ash', 'Ash', hallX + 3180));
   if (tier >= 3) enemies.push(placeEmber('soot', 'Soot', hallX + 4520));
-  enemies.push(placeFlyer('skim-a', hallX + 1240));
-  enemies.push(placeFlyer('skim-b', hallX + 3560));
-  if (tier >= 2) enemies.push(placeFlyer('skim-c', hallX + 4980));
+  if (tier >= 4) enemies.push(placeEmber('flare', 'Flare', hallX + 2500));
+  if (tier >= 5) enemies.push(placeEmber('brand', 'Brand', hallX + 5900));
+  const slant = tier >= 4;
+  enemies.push(placeFlyer('skim-a', hallX + 1240, slant));
+  enemies.push(placeFlyer('skim-b', hallX + 3560, slant));
+  if (tier >= 2) enemies.push(placeFlyer('skim-c', hallX + 4980, slant));
   if (tier >= 3) {
-    enemies.push(placeFlyer('skim-d', hallX + 6360));
-    enemies.push(placeFlyer('skim-e', gateX - 520));
+    enemies.push(placeFlyer('skim-d', hallX + 6360, slant));
+    enemies.push(placeFlyer('skim-e', gateX - 520, slant));
   }
+  if (tier >= 4) enemies.push(placeFlyer('skim-f', hallX + 3000, true));
+  if (tier >= 5) enemies.push(placeFlyer('skim-g', hallX + 6600, true));
   if (tier >= 3) {
     enemies.push({
       id: 'wisp',
@@ -415,6 +460,26 @@ function buildStage(tier) {
       cooldown: 1.45,
     });
   }
+  if (tier >= 5) {
+    enemies.push({
+      id: 'wisp-b',
+      kind: 'turret',
+      name: 'Wisp',
+      x: gateX - 680,
+      y: G - 36,
+      baseY: G - 36,
+      w: 40,
+      h: 28,
+      hp: 5,
+      max: 5,
+      dir: -1,
+      sprite: 'assets/wisp/00.png',
+      artLeft: true,
+      drawH: 58,
+      plated: false,
+      cooldown: 1.05,
+    });
+  }
   const relay = { x: topX + 170, y: topY, r: 52 };
   const stageName = names[tier];
   const signs = [
@@ -422,13 +487,29 @@ function buildStage(tier) {
     { x: 168, text: 'Shield', once: 'Shield. Hold Q. Fireballs from the front bounce off.' },
     { x: bX + 150, text: 'Sword', once: 'Sword in hand. E cuts a slash. Librarians pace and hop.' },
     { x: cX + 110, text: 'Helm', once: 'Gold helm. It adds one damage to the sword and the axe. Press I to look at it. The rise pauses.' },
-    { x: hallX + 1240, text: 'Skimmer', once: 'Skimmers cruise above the floor. Jump, then E.' },
+    { x: hallX + 1240, text: 'Skimmer', once: tier >= 4
+      ? 'Skimmers cruise above the floor and fire down on a slant. Jump, then E. Hold Q if the bolt is in front of you.'
+      : 'Skimmers cruise above the floor. Jump, then E.' },
     { x: hallX + 2280, text: 'Axe', once: 'Axe before the gate. E chops. The wheel still swaps weapons.' },
     { x: sparkX, text: 'Spark', once: 'Hemi spark. Press Space again in the air. One hop will not clear the shaft.' },
     { x: gateX - 260, text: 'Rifle', once: 'Rifle before the gate. E fires. The wheel still swaps weapons.' },
     { x: relay.x, y: relay.y, text: 'Relay', once: 'Hemi relay. F confirms the block this run started on. The gate on the floor stays shut until then.' },
     { x: gateX - 20, text: 'Gate', once: 'The boss waits just behind this gate. The door stays shut until the Shard or the Hex drops.' },
   ];
+  if (tier >= 4) {
+    signs.push({
+      x: hallX + 1100,
+      text: 'Drift',
+      once: 'These spans slide. Ride one to clear a librarian. One hop still will not clear a shaft.',
+    });
+  }
+  if (tier >= 5) {
+    signs.push({
+      x: hallX + 6020,
+      text: 'Crown',
+      once: 'The high span needs the spark. The boss throws a wider volley on each later rise.',
+    });
+  }
   return {
     zone: zones[tier],
     tier,
@@ -447,16 +528,69 @@ function buildStage(tier) {
   };
 }
 
-function buildHemi() {
-  return buildStage(1);
+const ZONE_TIER = { hemi: 1, wart: 2, cart: 3, gale: 4, crown: 5 };
+const ZONE_ORDER = ['hemi', 'wart', 'cart', 'gale', 'crown'];
+const ZONE_TITLES = {
+  hemi: 'Hemi Rise',
+  wart: 'Hemi Span',
+  cart: 'Hemi Deep',
+  gale: 'Hemi Gale',
+  crown: 'Hemi Crown',
+};
+
+function readWear() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(WEAR_KEY) || '{}');
+    const helm = raw.helm === 'goldhelm' || raw.helm === 'bluehelm' ? raw.helm : null;
+    const chest = raw.chest === 'goldplate' || raw.chest === 'blueplate' ? raw.chest : null;
+    return { helm, chest };
+  } catch {
+    return { helm: null, chest: null };
+  }
 }
 
-function buildWart() {
-  return buildStage(2);
+function writeWear(armor) {
+  const helm = armor?.helm === 'goldhelm' || armor?.helm === 'bluehelm' ? armor.helm : null;
+  const chest = armor?.chest === 'goldplate' || armor?.chest === 'blueplate' ? armor.chest : null;
+  try { localStorage.setItem(WEAR_KEY, JSON.stringify({ helm, chest })); } catch { /* this visit still wears it */ }
 }
 
-function buildCart() {
-  return buildStage(3);
+function bossRest(parity, tier) {
+  const base = parity === 'odd' ? 1.2 : 1.75;
+  return Math.max(0.48, base - (Math.max(1, tier) - 1) * 0.24);
+}
+
+function bossBoltCount(tier) {
+  return Math.max(1, Math.min(5, tier || 1));
+}
+
+function fireBossVolley(enemy, origin, dir) {
+  const tier = state.level.tier || 1;
+  const odd = enemy.parity === 'odd';
+  const speed = odd ? 168 : 136;
+  const color = odd ? '#ff9a3c' : '#9aefff';
+  const patterns = [
+    { vx: 1, vy: 0, oy: 8, ox: 14 },
+    { vx: 0.78, vy: 0.62, oy: 10, ox: 22 },
+    { vx: 0.84, vy: -0.48, oy: 2, ox: 18 },
+    { vx: 0.58, vy: 0.92, oy: 14, ox: 26 },
+    { vx: 0.92, vy: 0.34, oy: 6, ox: 20 },
+  ];
+  const n = bossBoltCount(tier);
+  for (let i = 0; i < n; i += 1) {
+    const pat = patterns[i];
+    state.shots.push({
+      x: origin + dir * pat.ox,
+      y: enemy.y + pat.oy,
+      w: 12,
+      h: 8,
+      vx: dir * speed * pat.vx,
+      vy: speed * pat.vy,
+      life: 2.4,
+      color,
+      friendly: false,
+    });
+  }
 }
 
 
@@ -539,14 +673,18 @@ function plantBoss(level, stamp) {
     hopV: even ? -280 : -330,
     vy: 0,
     grounded: true,
-    cooldown: even ? 1.4 : 1.0,
+    cooldown: Math.max(0.4, (even ? 1.4 : 1.0) - (tier - 1) * 0.16),
   });
 }
 
 function startGame(zoneId) {
-  const zone = zoneId === 'wart' ? 'wart' : zoneId === 'cart' ? 'cart' : 'hemi';
+  const zone = ZONE_TIER[zoneId] ? zoneId : 'hemi';
   const hero = resolveHero();
-  const level = zone === 'wart' ? buildWart() : zone === 'cart' ? buildCart() : buildHemi();
+  const level = buildStage(ZONE_TIER[zone]);
+  const wear = readWear();
+  for (const item of level.items) {
+    if (item.id === wear.helm || item.id === wear.chest) item.got = true;
+  }
   const stamp = stampRun();
   plantPage(level, stamp);
   plantBoss(level, stamp);
@@ -577,7 +715,7 @@ function startGame(zoneId) {
     level,
     weapon: null,
     maxHp: 5,
-    armor: { helm: null, chest: null },
+    armor: { helm: wear.helm, chest: wear.chest },
     inv: {
       eye: false,
       blade: false,
@@ -585,10 +723,10 @@ function startGame(zoneId) {
       gun: false,
       spark: false,
       filament: false,
-      goldhelm: false,
-      goldplate: false,
-      bluehelm: false,
-      blueplate: false,
+      goldhelm: wear.helm === 'goldhelm',
+      goldplate: wear.chest === 'goldplate',
+      bluehelm: wear.helm === 'bluehelm',
+      blueplate: wear.chest === 'blueplate',
       shield: false,
     },
     shieldPing: 0,
@@ -634,7 +772,11 @@ function startGame(zoneId) {
     ? `Hemi #${stamp.block} is ${even ? 'even' : 'odd'}`
     : 'Hemi is quiet, so this run is even';
   const bossName = even ? 'Shard' : 'Hex';
-  toast(`${stamped}. A ${bossName} waits behind the gate. The sword is ahead on ${level.name}.`);
+  const wornNames = [wear.helm, wear.chest]
+    .map((id) => ARMOR.find((piece) => piece.id === id)?.name)
+    .filter(Boolean);
+  const wornLine = wornNames.length ? ` ${wornNames.join(' and ')} still on.` : '';
+  toast(`${stamped}. A ${bossName} waits behind the gate.${wornLine} The sword is ahead on ${level.name}.`);
 }
 
 const CLEAR_KEY = 'relay-zone-clears';
@@ -701,8 +843,16 @@ function markClear(zone) {
 function renderZonePicks() {
   const done = new Set(clearedZones());
   if (el.startCart) el.startCart.hidden = false;
-  if (el.zoneCount) el.zoneCount.textContent = 'Three Hemi stages';
-  for (const [id, node] of [['hemi', el.startHemi], ['wart', el.startWart], ['cart', el.startCart]]) {
+  if (el.startGale) el.startGale.hidden = false;
+  if (el.startCrown) el.startCrown.hidden = false;
+  if (el.zoneCount) el.zoneCount.textContent = 'Five Hemi stages';
+  for (const [id, node] of [
+    ['hemi', el.startHemi],
+    ['wart', el.startWart],
+    ['cart', el.startCart],
+    ['gale', el.startGale],
+    ['crown', el.startCrown],
+  ]) {
     const mark = node?.querySelector('.zone-clear');
     if (mark) mark.hidden = !done.has(id);
   }
@@ -847,6 +997,7 @@ function toggleArmor(id) {
   if (state.armor[meta.slot] === id) state.armor[meta.slot] = null;
   else state.armor[meta.slot] = id;
   applyArmor();
+  writeWear(state.armor);
   renderBag();
   toast(state.armor[meta.slot] === id ? `${meta.name} equipped.` : `${meta.name} taken off.`);
 }
@@ -1051,6 +1202,7 @@ function grant(id) {
   if (meta?.slot && !state.armor[meta.slot]) {
     state.armor[meta.slot] = id;
     applyArmor();
+    writeWear(state.armor);
   }
   renderHud();
   const worth = {
@@ -1204,6 +1356,12 @@ function update(dt) {
   if (state.mode !== 'play') return;
   const player = state.player;
   state.time += dt;
+  for (const plat of state.level.platforms) {
+    if (!plat.slide) continue;
+    const swing = Math.sin(state.time * plat.rate + plat.phase);
+    plat.x = plat.homeX + swing * plat.slide;
+    if (plat.bob) plat.y = plat.homeY + Math.cos(state.time * plat.rate + plat.phase) * plat.bob;
+  }
   if (state.pops) {
     for (const pop of state.pops) {
       pop.y -= 22 * dt;
@@ -1240,18 +1398,28 @@ function update(dt) {
     player.coyote = 0;
     player.airtime = 0;
     player.airJumps = state.inv.spark ? 1 : 0;
+    player.releaseJump = false;
     state.jumpBuffer = 0;
     state.riseOrigin = player.y + player.h;
     state.peak = 0;
   } else if (state.jumpBuffer > 0 && player.airJumps > 0 && player.airtime > 0.13) {
     player.vy = -state.hero.jumpV;
     player.airJumps -= 1;
+    player.releaseJump = false;
     state.jumpBuffer = 0;
     state.didDouble = true;
   }
 
-  if (input.jumpRelease && player.vy < 0) player.vy *= 0.45;
-  input.jumpRelease = false;
+  if (input.jumpRelease) {
+    player.releaseJump = true;
+    input.jumpRelease = false;
+  }
+  // A phone tap releases on the same frame the hop starts. Hold the rise
+  // long enough to clear a librarian before the short-hop cut applies.
+  if (player.releaseJump && player.vy < 0 && player.airtime > 0.11) {
+    player.vy *= 0.45;
+    player.releaseJump = false;
+  }
 
   if (input.attackQueued) {
     input.attackQueued = false;
@@ -1355,7 +1523,30 @@ function update(dt) {
         enemy.dir *= -1;
         enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX, enemy.x));
       }
-      enemy.y = enemy.baseY + Math.sin(state.time * 2.4 + (enemy.phase || 0)) * 7;
+      enemy.y = enemy.baseY + Math.sin(state.time * 2.4 + (enemy.phase || 0)) * (enemy.bob || 7);
+      if (enemy.shoot) {
+        enemy.cooldown -= dt;
+        const originX = enemy.x + enemy.w / 2;
+        const originY = enemy.y + enemy.h;
+        const dx = player.x + player.w / 2 - originX;
+        const dy = player.y + player.h / 2 - originY;
+        const lined = dy > 18 && dy < 190 && Math.abs(dx) < 240 && Math.abs(dx) > 20;
+        if (lined && enemy.cooldown <= 0) {
+          const dir = dx < 0 ? -1 : 1;
+          enemy.cooldown = 1.45;
+          state.shots.push({
+            x: originX + dir * 8,
+            y: originY - 2,
+            w: 8,
+            h: 8,
+            vx: dir * (96 + Math.min(64, Math.abs(dx) * 0.45)),
+            vy: 120 + Math.min(48, dy * 0.2),
+            life: 2.6,
+            color: '#7ee7ff',
+            friendly: false,
+          });
+        }
+      }
     } else if (enemy.baseY != null) {
       enemy.y = enemy.baseY + Math.sin(state.time * 3) * 6;
     }
@@ -1366,20 +1557,14 @@ function update(dt) {
       const dx = player.x + player.w / 2 - origin;
       const dy = Math.abs((player.y + player.h / 2) - (enemy.y + enemy.h / 2));
       const pastGate = player.x > state.level.gate.x;
-      if (state.sealOpen && pastGate && dy < 100 && Math.abs(dx) < 230 && Math.abs(dx) > 28 && enemy.cooldown <= 0) {
+      const tier = state.level.tier || 1;
+      const reach = 230 + (tier - 1) * 36;
+      const dyBand = 100 + (tier - 1) * 18;
+      if (state.sealOpen && pastGate && dy < dyBand && Math.abs(dx) < reach && Math.abs(dx) > 28 && enemy.cooldown <= 0) {
         const dir = dx < 0 ? -1 : 1;
         enemy.dir = dir;
-        enemy.cooldown = enemy.parity === 'odd' ? 1.2 : 1.75;
-        state.shots.push({
-          x: origin + dir * 14,
-          y: enemy.y + 8,
-          w: 12,
-          h: 8,
-          vx: dir * (enemy.parity === 'odd' ? 168 : 136),
-          life: 2.4,
-          color: enemy.parity === 'odd' ? '#ff9a3c' : '#9aefff',
-          friendly: false,
-        });
+        enemy.cooldown = bossRest(enemy.parity, tier);
+        fireBossVolley(enemy, origin, dir);
       }
     } else if (enemy.kind === 'turret' || enemy.kind === 'ember') {
       enemy.cooldown -= dt;
@@ -1445,6 +1630,7 @@ function update(dt) {
 
   for (const shot of state.shots) {
     shot.x += shot.vx * dt;
+    shot.y += (shot.vy || 0) * dt;
     shot.life -= dt;
     if (shot.friendly) {
       for (const enemy of state.level.enemies) {
@@ -1465,7 +1651,7 @@ function update(dt) {
     }
   }
   const shotFar = (state.level.exit?.x || 4000) + 900;
-  state.shots = state.shots.filter((shot) => shot.life > 0 && shot.x > -40 && shot.x < shotFar);
+  state.shots = state.shots.filter((shot) => shot.life > 0 && shot.x > -40 && shot.x < shotFar && shot.y > -160 && shot.y < G + 80);
 
   for (const enemy of state.level.enemies) {
     if (enemy.hp <= 0 || enemy.kind === 'turret') continue;
@@ -1680,16 +1866,15 @@ function finishSim(status) {
 }
 
 function clearedTitle(zone) {
-  if (zone === 'wart') return 'Hemi Span';
-  if (zone === 'cart') return 'Hemi Deep';
-  return 'Hemi Rise';
+  return ZONE_TITLES[zone] || 'Hemi Rise';
 }
 
 function nextStageName(zone) {
   const done = new Set(clearedZones());
-  if (zone === 'hemi' && !done.has('wart')) return 'Hemi Span';
-  if (zone === 'wart' && !done.has('cart')) return 'Hemi Deep';
-  if (zone === 'hemi' && !done.has('cart')) return 'Hemi Deep';
+  const start = ZONE_ORDER.indexOf(zone);
+  for (let i = start + 1; i < ZONE_ORDER.length; i += 1) {
+    if (!done.has(ZONE_ORDER[i])) return ZONE_TITLES[ZONE_ORDER[i]];
+  }
   return '';
 }
 
@@ -1932,8 +2117,14 @@ function draw() {
       ctx.arc(shot.x + 4, shot.y + 4, 3, 0, Math.PI * 2);
       ctx.fill();
     } else {
+      ctx.save();
+      ctx.translate(shot.x + shot.w / 2, shot.y + shot.h / 2);
+      if (shot.vy) ctx.rotate(Math.atan2(shot.vy, shot.vx || 0.001));
       ctx.fillStyle = shot.color || '#ffb020';
-      ctx.fillRect(shot.x, shot.y, shot.w, shot.h);
+      const dw = shot.vy ? 16 : shot.w;
+      const dh = shot.vy ? 4 : shot.h;
+      ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
     }
   }
 
@@ -2468,6 +2659,8 @@ function boot() {
   el.startHemi.addEventListener('click', () => startGame('hemi'));
   el.startWart.addEventListener('click', () => startGame('wart'));
   el.startCart?.addEventListener('click', () => startGame('cart'));
+  el.startGale?.addEventListener('click', () => startGame('gale'));
+  el.startCrown?.addEventListener('click', () => startGame('crown'));
   renderZonePicks();
   paintBest();
   el.again.addEventListener('click', () => startGame(state?.zone || 'hemi'));
@@ -2605,30 +2798,145 @@ function boot() {
   if (qs.get('sim') === 'gates') runGateTest();
   if (qs.get('sim') === 'guard') runGuardTest();
   if (qs.get('sim') === 'return') runReturnTest();
+  if (qs.get('sim') === 'wear') runWearTest();
+  if (qs.get('sim') === 'gale') runGaleTest();
 }
 
 function runReturnTest() {
   localStorage.removeItem(CLEAR_KEY);
   renderZonePicks();
   const cartBtn = document.getElementById('start-cart');
-  const open = !!(cartBtn && !cartBtn.hidden);
+  const galeBtn = document.getElementById('start-gale');
+  const crownBtn = document.getElementById('start-crown');
+  const open = !!(cartBtn && !cartBtn.hidden && galeBtn && !galeBtn.hidden && crownBtn && !crownBtn.hidden);
   startGame('hemi');
   win();
   const note = el.selectNote?.textContent || '';
   const hemiClear = document.querySelector('#start-hemi .zone-clear');
   startGame('cart');
   win();
+  const galeNote = el.selectNote?.textContent || '';
+  startGame('crown');
+  win();
   const back = el.selectNote?.textContent || '';
   const report = {
     status: open && !el.select.hidden && el.play.hidden
-      && note.includes('Hemi Span') && back.includes('brought you back') && hemiClear && !hemiClear.hidden
+      && note.includes('Hemi Span') && galeNote.includes('Hemi Gale')
+      && back.includes('brought you back') && hemiClear && !hemiClear.hidden
       ? 'pass' : 'fail',
     select: !el.select.hidden,
     play: el.play.hidden,
     open,
     hemiClear: hemiClear ? !hemiClear.hidden : false,
     note,
+    galeNote,
     back,
+  };
+  document.body.dataset.status = report.status;
+  el.sim.hidden = false;
+  el.sim.textContent = JSON.stringify(report);
+}
+
+function runWearTest() {
+  localStorage.removeItem(WEAR_KEY);
+  startGame('hemi');
+  state.inv.goldhelm = true;
+  state.inv.blueplate = true;
+  setBag(true);
+  toggleArmor('goldhelm');
+  toggleArmor('blueplate');
+  showSelect();
+  startGame('gale');
+  const gold = state.level.items.find((item) => item.id === 'goldhelm');
+  const blueHelm = state.level.items.find((item) => item.id === 'bluehelm');
+  const bluePlate = state.level.items.find((item) => item.id === 'blueplate');
+  const goldPlate = state.level.items.find((item) => item.id === 'goldplate');
+  const kept = state.zone === 'gale'
+    && state.armor.helm === 'goldhelm'
+    && state.armor.chest === 'blueplate'
+    && state.inv.goldhelm && state.inv.blueplate
+    && !state.inv.bluehelm && !state.inv.goldplate
+    && gold?.got && bluePlate?.got
+    && !blueHelm?.got && !goldPlate?.got;
+  setBag(true);
+  toggleArmor('goldhelm');
+  const bare = state.armor.helm;
+  startGame('crown');
+  const dropped = state.zone === 'crown' && state.armor.helm == null && state.armor.chest === 'blueplate';
+  const report = {
+    status: kept && bare == null && dropped ? 'pass' : 'fail',
+    kept,
+    bare,
+    dropped,
+    armor: state.armor,
+  };
+  document.body.dataset.status = report.status;
+  el.sim.hidden = false;
+  el.sim.textContent = JSON.stringify(report);
+}
+
+function bossVolleySize(zone) {
+  startGame(zone);
+  const boss = state.level.enemies.find((enemy) => enemy.kind === 'boss');
+  state.sealOpen = true;
+  state.player.x = boss.x - 70;
+  state.player.y = G - 30;
+  state.player.iframes = 99;
+  state.shots = [];
+  boss.cooldown = 0;
+  update(1 / 60);
+  return state.shots.filter((shot) => !shot.friendly).length;
+}
+
+function runGaleTest() {
+  const riseBolts = bossVolleySize('hemi');
+  const spanBolts = bossVolleySize('wart');
+  const deepBolts = bossVolleySize('cart');
+  const galeBolts = bossVolleySize('gale');
+  const crownBolts = bossVolleySize('crown');
+  const flyersOf = (tier) => buildStage(tier).enemies.filter((enemy) => enemy.kind === 'flyer');
+  const early = flyersOf(3);
+  const galeFlyers = flyersOf(4);
+  const crownFlyers = flyersOf(5);
+  const armed = early.every((enemy) => !enemy.shoot)
+    && galeFlyers.every((enemy) => enemy.shoot)
+    && crownFlyers.length > galeFlyers.length
+    && galeFlyers.length >= 6;
+  startGame('gale');
+  const slides = state.level.platforms.filter((plat) => plat.slide);
+  const x0 = slides[0]?.x;
+  const flyer = state.level.enemies.find((enemy) => enemy.shoot);
+  state.player.x = flyer.x - 30;
+  state.player.y = G - 30;
+  state.player.onGround = true;
+  state.player.iframes = 99;
+  flyer.cooldown = 0;
+  state.shots = [];
+  update(1 / 60);
+  const slant = state.shots.find((shot) => shot.vx && shot.vy > 0 && !shot.friendly);
+  const slantCopy = slant ? { vx: Math.round(slant.vx), vy: Math.round(slant.vy) } : null;
+  for (let i = 0; i < 40; i += 1) update(1 / 60);
+  const moved = !!(slides[0] && Math.abs(slides[0].x - x0) > 1);
+  const longer = buildStage(5).exit.x > buildStage(4).exit.x && buildStage(4).exit.x > buildStage(3).exit.x;
+  const shafts = [1, 2, 3, 4, 5].map((tier) => buildStage(tier).platforms.filter((plat) => /^h\d+$/.test(plat.id)).length);
+  const oneHop = HEMIGO.single < SHAFT;
+  const report = {
+    status: riseBolts === 1 && spanBolts === 2 && deepBolts === 3 && galeBolts === 4 && crownBolts === 5
+      && armed && slantCopy && slantCopy.vx !== 0 && slantCopy.vy > 0 && moved && longer
+      && shafts.join() === '2,3,4,5,6' && oneHop
+      ? 'pass' : 'fail',
+    riseBolts,
+    spanBolts,
+    deepBolts,
+    galeBolts,
+    crownBolts,
+    slant: slantCopy,
+    moved,
+    longer,
+    shafts,
+    slides: slides.length,
+    oneHop,
+    armed,
   };
   document.body.dataset.status = report.status;
   el.sim.hidden = false;

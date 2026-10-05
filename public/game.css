@@ -203,6 +203,8 @@ h1 {
 .zone-pick.hemi,
 .zone-pick.wart,
 .zone-pick.cart { border-color: rgba(126, 231, 255, 0.55); }
+.zone-pick.gale { border-color: rgba(255, 213, 106, 0.75); }
+.zone-pick.crown { border-color: rgba(255, 138, 163, 0.8); }
 .zone-pick .zone-kicker {
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -221,6 +223,10 @@ h1 {
 .zone-pick.wart .zone-title,
 .zone-pick.cart .zone-kicker,
 .zone-pick.cart .zone-title { color: #7ee7ff; }
+.zone-pick.gale .zone-kicker,
+.zone-pick.gale .zone-title { color: #ffd56a; }
+.zone-pick.crown .zone-kicker,
+.zone-pick.crown .zone-title { color: #ff8aa3; }
 .zone-clear {
   margin-left: 6px;
   color: #9dffc8;
@@ -399,6 +405,28 @@ h1 {
   font-size: 13px;
 }
 
+.wallet-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.wallet-btn { min-height: 36px; }
+
+.wallet-btn.is-on {
+  border-color: rgba(126, 231, 255, 0.7);
+  color: #d8f7ff;
+}
+
+.wallet-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .vital {
   display: flex;
   align-items: center;
@@ -419,6 +447,8 @@ h1 {
 body[data-zone="hemi"] .zone-name,
 body[data-zone="wart"] .zone-name,
 body[data-zone="cart"] .zone-name { color: #7ee7ff; }
+body[data-zone="gale"] .zone-name { color: #ffd56a; }
+body[data-zone="crown"] .zone-name { color: #ff8aa3; }
 
 .inv { display: flex; gap: 4px; margin-left: auto; }
 .slot {
