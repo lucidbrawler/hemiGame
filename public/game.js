@@ -2364,6 +2364,19 @@ function fit() {
   if (!stage) return;
   const rect = stage.getBoundingClientRect();
   if (rect.width < 40 || rect.height < 40) return;
+  // A sideways phone is short and wide. Grow the view so the frame
+  // meets every edge instead of sitting as a 16:9 box in the middle.
+  const sideways = window.matchMedia('(orientation: landscape) and (max-height: 520px)').matches;
+  if (sideways) {
+    const aspect = rect.width / rect.height;
+    viewH = VIEW_H;
+    viewW = Math.max(VIEW_W, Math.round(VIEW_H * aspect));
+    el.canvas.width = viewW;
+    el.canvas.height = viewH;
+    el.frame.style.width = '100%';
+    el.frame.style.height = '100%';
+    return;
+  }
   const widthScale = rect.width / VIEW_W;
   const band = VIEW_H * widthScale;
   if (rect.height > band + 48) {
@@ -2563,7 +2576,13 @@ function boot() {
     const arm = event.target?.dataset?.arm;
     if (arm) equipOwned(arm);
   });
-  window.addEventListener('resize', fit);
+  const fitSoon = () => {
+    fit();
+    requestAnimationFrame(fit);
+  };
+  window.addEventListener('resize', fitSoon);
+  window.addEventListener('orientationchange', fitSoon);
+  window.visualViewport?.addEventListener('resize', fitSoon);
   window.addEventListener('blur', () => {
     keys.clear();
     input.shieldHeld = false;
