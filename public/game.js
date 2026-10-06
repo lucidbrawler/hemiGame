@@ -3,10 +3,10 @@
  * Five Hemi stages: Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, Hemi Crown.
  * Each one is longer and harder. Gale and Crown skimmers fire down on a slant.
  * Space jumps. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
- * F confirms the relay. I pauses on the armor bag. Chain chips are display-only.
+ * F confirms the relay. I pauses on the armor bag. The chip is the Hemi mainnet block.
  * Health is five Hemi marks. Gold armor hits harder. Blue armor is faster.
  * Pick Hemigo or Orami, then a map. Both use the same gear.
- * The Hemi block you start on plants one glowing page and the boss at the door.
+ * The Hemi block you start on plants one glowing page, its score, and the boss at the door.
  * An even block calls a Shard. An odd block calls a Hex.
  */
 const GRAV = 1700;
@@ -101,11 +101,11 @@ const THEME = {
     gate: '#102433', bar: '#7ee7ff', doorOn: '#7ee7ff', doorOff: '#1a3344',
   },
   wart: {
-    sky0: '#3a2410', sky1: '#120a04', star: '#ffc107', ink: '#ffc107', word: 'WART',
+    sky0: '#3a2410', sky1: '#120a04', star: '#ffc107', ink: '#ffc107', word: 'HEMI',
     gate: '#2a1608', bar: '#ffc107', doorOn: '#ffc107', doorOff: '#2a1a0c',
   },
   cart: {
-    sky0: '#2a1848', sky1: '#100818', star: '#e0b0ff', ink: '#e0b0ff', word: 'CART',
+    sky0: '#2a1848', sky1: '#100818', star: '#e0b0ff', ink: '#e0b0ff', word: 'HEMI',
     gate: '#241433', bar: '#e0b0ff', doorOn: '#e0b0ff', doorOff: '#2a1844',
   },
 };
@@ -611,22 +611,13 @@ function pageSpots() {
 
 function stampRun() {
   const h = chains?.hemi;
-  const w = chains?.warthog;
-  const c = chains?.cartesi;
   const block = Number(h?.block);
-  const height = Number(w?.defiHeight);
   const hasBlock = Number.isFinite(block) && block > 0;
-  const hasHeight = Number.isFinite(height) && height > 0;
-  const orbitLive = c && c.orbitLive != null ? Number(c.orbitLive) : null;
-  const orbitN = c && c.orbitN != null ? Number(c.orbitN) : null;
   return {
     block: hasBlock ? block : 0,
     chainId: h?.chainId || 43111,
-    height: hasHeight ? height : 0,
     slot: hasBlock ? block % 3 : 0,
-    worth: hasHeight ? PAGE_WORTH[height % 3] : 80,
-    orbitLive: Number.isFinite(orbitLive) ? orbitLive : null,
-    orbitN: Number.isFinite(orbitN) ? orbitN : null,
+    worth: hasBlock ? PAGE_WORTH[Math.floor(block / 3) % 3] : 80,
     mark: hasBlock ? String(block).slice(-3) : '··',
   };
 }
@@ -1003,24 +994,14 @@ function toggleArmor(id) {
 }
 
 function chipList(target) {
-  const bits = [];
-  const w = chains?.warthog;
-  const c = chains?.cartesi;
+  if (!target) return;
   const h = chains?.hemi;
   const run = state?.stamp;
-  const height = run ? run.height : w?.defiHeight;
-  const orbitLive = run ? run.orbitLive : c?.orbitLive;
-  const orbitN = run ? run.orbitN : c?.orbitN;
   const block = run ? run.block : h?.block;
-  if (height) {
-    const wart = !run && w?.available ? ` · ${Number(w.available).toFixed(0)}` : '';
-    bits.push(`<span class="chip wart">WART #${height}${wart}</span>`);
-  } else bits.push('<span class="chip quiet">WART quiet</span>');
-  if (run ? orbitLive != null : !!c) bits.push(`<span class="chip cart">Orbit ${orbitLive ?? '?'}/${orbitN ?? '?'}</span>`);
-  else bits.push('<span class="chip quiet">Orbit quiet</span>');
-  if (block) bits.push(`<span class="chip hemi">${run ? 'Run' : 'Hemi'} #${block}</span>`);
-  else bits.push(`<span class="chip quiet">${run ? 'Run quiet' : 'Hemi quiet'}</span>`);
-  target.innerHTML = bits.join('');
+  const bit = block
+    ? `<span class="chip hemi">${run ? 'Run' : 'Hemi'} #${block}</span>`
+    : `<span class="chip quiet">${run ? 'Run quiet' : 'Hemi quiet'}</span>`;
+  target.innerHTML = bit;
 }
 
 function renderChips() {
@@ -1255,14 +1236,6 @@ function hemiLine() {
   return `Hemi chain ${chainId}, block #${block}.`;
 }
 
-function cartLine() {
-  const c = chains?.cartesi;
-  const live = state?.stamp ? state.stamp.orbitLive : c?.orbitLive;
-  const n = state?.stamp ? state.stamp.orbitN : c?.orbitN;
-  if (live == null) return 'The Cartesi vault is quiet. This well still confirms.';
-  return `Cartesi orbit ${live}/${n}.`;
-}
-
 function postLine() {
   return hemiLine();
 }
@@ -1296,14 +1269,6 @@ function tryUse() {
   if (!state.sealOpen && near(gate.x, G, 56)) toast('The gate is shut. Confirm the relay at the top of the shaft.');
 }
 
-function wartLine() {
-  const w = chains?.warthog;
-  const height = state?.stamp ? state.stamp.height : w?.defiHeight;
-  if (!height) return 'The Wart post is quiet. This hollow still confirms.';
-  const free = w?.available != null ? ` ${Number(w.available).toFixed(0)} WART is available.` : '';
-  return `Warthog DeFi testnet block #${height}.${free}`;
-}
-
 function takePage() {
   const page = state.level.page;
   if (!page || page.got) return;
@@ -1315,10 +1280,7 @@ function takePage() {
   addScore(page.worth, page.x, page.y);
   const stamp = state.stamp;
   const witness = stamp?.block ? `Hemi #${stamp.block}.` : 'Hemi is quiet.';
-  const orbit = stamp?.orbitLive == null
-    ? 'The vault is quiet.'
-    : `Orbit ${stamp.orbitLive}/${stamp.orbitN} is awake.`;
-  toast(`Page gathered. ${witness} ${orbit}`);
+  toast(`Page gathered. ${witness}`);
 }
 
 function paceHopper(enemy, dt) {
@@ -1857,7 +1819,7 @@ function finishSim(status) {
     bossHp: (state.level.enemies.find((enemy) => enemy.kind === 'boss') || {}).hp,
     hopPeak: Math.round(state.hopPeak || 0),
     simT: Math.round(state.simT * 10) / 10,
-    chains: !!(chains && (chains.warthog || chains.cartesi || chains.hemi)),
+    chains: !!(chains && chains.hemi),
   };
   document.body.dataset.status = status;
   el.sim.hidden = false;
