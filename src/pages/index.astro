@@ -18,8 +18,10 @@ export const prerender = true;
       <p class="lede">
         Pick Hemigo or Orami, then pick a map. Space jumps. E swings, chops, or fires.
         The mouse wheel cycles weapons you have found. Hold Q to raise a shield.
-        F confirms the post at the top. Armor is lying on the ground.
-        I pauses the run so you can equip it and look at it.
+        F confirms the post at the top. The grass rise has no armor and no spark.
+        Its relay is two steps, one hop each. The spark is on the mountain rise.
+        That rise also has a chest plate. Helms are on the tundra and the volcano.
+        I pauses the run so you can equip what you have found.
         An open gate brings you back here.
       </p>
       <p id="select-note" class="select-note" hidden></p>
@@ -27,7 +29,7 @@ export const prerender = true;
         <button type="button" class="runner is-picked" data-hero="hemigo" id="pick-hemigo" aria-pressed="true">
           <img src="/assets/pilot.png" alt="" />
           <span class="runner-name">Hemigo</span>
-          <span class="runner-role">Empty hands. The sword, the plate, and the shield are on the ground.</span>
+          <span class="runner-role">Empty hands. The sword and the shield are on the ground. Armor comes later.</span>
         </button>
         <button type="button" class="runner" data-hero="orami" id="pick-orami" aria-pressed="false">
           <img src="/assets/orami/idle.png" alt="" />
@@ -39,27 +41,27 @@ export const prerender = true;
         <button type="button" id="start-hemi" class="zone-pick hemi">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Rise</span>
-          <span class="zone-blurb">The short Hemi rise. Librarians pace and hop. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
+          <span class="zone-blurb">Open grass. No armor and no spark. Two steps, and one hop clears each. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
         </button>
         <button type="button" id="start-wart" class="zone-pick wart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Span</span>
-          <span class="zone-blurb">A longer hall and a taller shaft. More librarians, more fireballs, and a tougher boss at the door.</span>
+          <span class="zone-blurb">Warm stone mountains. The Hemi spark is on the hall floor, and the shaft needs that second hop. Chest plates are here too. No helm yet.</span>
         </button>
         <button type="button" id="start-cart" class="zone-pick cart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Deep</span>
-          <span class="zone-blurb">The long shaft, a low ceiling, a wisp, and a Shard or Hex that fires a wider volley. The door waits behind that fight.</span>
+          <span class="zone-blurb">Jungle canopy, a low ceiling, a wisp, and a wider volley. No new armor here. Gear you already picked up comes with you.</span>
         </button>
         <button type="button" id="start-gale" class="zone-pick gale">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Gale</span>
-          <span class="zone-blurb">Sliding spans and a longer hall. Skimmers fire down on a slant, and the boss throws more bolts than on the rises before it.</span>
+          <span class="zone-blurb">Icy winter tundra. Sliding spans, a gold helm on the ground, and skimmers that fire down on a slant.</span>
         </button>
         <button type="button" id="start-crown" class="zone-pick crown">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Crown</span>
-          <span class="zone-blurb">The tallest shaft, a high span that needs the spark, and the heaviest volley. Skimmers keep firing on the diagonal.</span>
+          <span class="zone-blurb">Volcanic mountains. The tallest shaft, a blue helm on the ground, and the heaviest volley. Skimmers keep firing on the diagonal.</span>
         </button>
       </div>
       <div class="pilot-card">
@@ -112,10 +114,10 @@ export const prerender = true;
       <div id="select-chips" class="chips" aria-live="polite"></div>
       <p id="best-score" class="best-score" hidden></p>
       <p class="fine">
-        Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, and Hemi Crown are the same kind of rise, and each one is harder. The helm and plate you equip stay on when you pick the next map.
+        Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is harder. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
         The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
         An even block puts a Shard just behind the gate. An odd block puts a Hex there.
-        The door stays shut until that boss drops. Librarians pace their ground and hop.
+        The boss fires as you approach the gate and chases when it is hurt or you are down to two marks. Librarians pace, hop, and spit acid.
         The page score follows that same Hemi block.
         The chip stays on screen and stays read-only. Nothing here signs or spends.
       </p>

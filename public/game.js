@@ -1,6 +1,8 @@
 /**
  * Relay Zones.
- * Five Hemi stages: Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, Hemi Crown.
+ * Five Hemi stages: grass, mountains, jungle, winter tundra, volcanic peaks.
+ * Rise has no armor and no spark. Its relay is two steps, one hop each.
+ * Span has the spark and the chest plates. Gale and Crown have the helms.
  * Each one is longer and harder. Gale and Crown skimmers fire down on a slant.
  * Space jumps. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
  * F confirms the relay. I pauses on the armor bag. The chip is the Hemi mainnet block.
@@ -42,6 +44,8 @@ ORAMI.single = HEMIGO.single;
 const HEROES = { hemigo: HEMIGO, orami: ORAMI, pilot: HEMIGO };
 const HERO_KEY = 'relay-zone-hero';
 const WEAR_KEY = 'relay-zone-wear';
+const GEAR_KEY = 'relay-zone-gear';
+const GEAR_IDS = ['blade', 'axe', 'gun', 'spark', 'shield', 'goldhelm', 'bluehelm', 'goldplate', 'blueplate'];
 const ORAMI_WALK_N = 9;
 const KIT_WALK_N = 8;
 const KIT_IDLE_HAND = { x: 11, y: -24 };
@@ -97,25 +101,30 @@ const ALL_META = [...ITEM_META, ...ARMOR];
 const ARM_ORDER = ['sword', 'axe', 'gun'];
 const THEME = {
   hemi: {
-    sky0: '#123044', sky1: '#071018', star: '#7ee7ff', ink: '#7ee7ff', word: 'HEMI',
-    gate: '#102433', bar: '#7ee7ff', doorOn: '#7ee7ff', doorOff: '#1a3344',
+    biome: 'grass',
+    sky0: '#79c4ef', sky1: '#d7f0b4', star: '#fff6c8', ink: '#1a4a28', word: 'HEMI',
+    gate: '#245c30', bar: '#d8ff8a', doorOn: '#b6ff62', doorOff: '#1a3c22',
   },
   wart: {
-    sky0: '#3a2410', sky1: '#120a04', star: '#ffc107', ink: '#ffc107', word: 'HEMI',
-    gate: '#2a1608', bar: '#ffc107', doorOn: '#ffc107', doorOff: '#2a1a0c',
+    biome: 'mountain',
+    sky0: '#7f9ec4', sky1: '#f0c48a', star: '#fff1d0', ink: '#4a3018', word: 'HEMI',
+    gate: '#5c3c28', bar: '#e8c27a', doorOn: '#ffd48a', doorOff: '#3a2818',
   },
   cart: {
-    sky0: '#2a1848', sky1: '#100818', star: '#e0b0ff', ink: '#e0b0ff', word: 'HEMI',
-    gate: '#241433', bar: '#e0b0ff', doorOn: '#e0b0ff', doorOff: '#2a1844',
+    biome: 'jungle',
+    sky0: '#0c3022', sky1: '#1a4c34', star: '#d8ffb0', ink: '#c8f5d4', word: 'HEMI',
+    gate: '#143820', bar: '#7dff9a', doorOn: '#b6ff6a', doorOff: '#102818',
   },
-};
-
-const PAL = {
-  wart: { body: '#a56b28', top: '#ffc107', mortar: '#5a3814' },
-  hemi: { body: '#2f6ea8', top: '#7ee7ff', mortar: '#17385c' },
-  cart: { body: '#7a44a8', top: '#e0b0ff', mortar: '#3d2058' },
-  ceil: { body: '#3a354c', top: '#8d86a8', mortar: '#221e30' },
-  glide: { body: '#245c78', top: '#d6ff4a', mortar: '#123246' },
+  gale: {
+    biome: 'tundra',
+    sky0: '#c5dcea', sky1: '#f7fbff', star: '#ffffff', ink: '#1c3c52', word: 'HEMI',
+    gate: '#2c4e64', bar: '#d6f4ff', doorOn: '#ffffff', doorOff: '#1a3344',
+  },
+  crown: {
+    biome: 'volcano',
+    sky0: '#4a1610', sky1: '#140806', star: '#ffb060', ink: '#ffc090', word: 'HEMI',
+    gate: '#3a1810', bar: '#ff7a32', doorOn: '#ffb020', doorOff: '#2a120c',
+  },
 };
 
 const qs = new URLSearchParams(location.search);
@@ -270,6 +279,7 @@ function librarian(id, x, minX, maxX, hp, speed, hopCd) {
     hopV: -250,
     vy: 0,
     grounded: true,
+    shotCd: 0.45 + (Math.abs(Math.round(x)) % 5) * 0.15,
   };
 }
 
@@ -322,8 +332,9 @@ function buildStage(tier) {
   const ledge0 = sparkX + 240;
   const ledgeStep = 150;
   const ledgeW = 340;
+  const stepRise = tier === 1 ? 52 : SHAFT;
   const topX = ledge0 + (shafts - 1) * ledgeStep;
-  const topY = G - SHAFT * shafts;
+  const topY = G - stepRise * shafts;
   const topEnd = topX + ledgeW;
   const preGate = tier >= 5 ? 1200 : tier >= 4 ? 1040 : tier >= 3 ? 880 : 580;
   const gateX = topEnd + preGate;
@@ -354,7 +365,7 @@ function buildStage(tier) {
     one('hall', hallX, G, exitX + 280 - hallX, 200),
   ];
   for (let i = 0; i < shafts; i += 1) {
-    platforms.push(one(`h${i}`, ledge0 + i * ledgeStep, G - SHAFT * (i + 1), ledgeW, 16));
+    platforms.push(one(`h${i}`, ledge0 + i * ledgeStep, G - stepRise * (i + 1), ledgeW, 16));
   }
   if (tier >= 3) {
     platforms.push({ id: 'ceil', x: hallX + 2050, y: G - 78, w: 640, h: 22, oneWay: false, kind: 'ceil' });
@@ -373,14 +384,18 @@ function buildStage(tier) {
   const items = [
     { id: 'shield', x: 170, y: G - 32, got: false },
     { id: 'blade', x: bX + 150, y: G - 36, got: false },
-    { id: 'goldhelm', x: cX + 110, y: G - 34, got: false },
-    { id: 'bluehelm', x: cX + 280, y: G - 34, got: false },
-    { id: 'goldplate', x: cX + 500, y: G - 34, got: false },
-    { id: 'spark', x: sparkX, y: G - 28, got: false },
-    { id: 'blueplate', x: gateX - 200, y: G - 34, got: false },
     { id: 'axe', x: hallX + 2280, y: G - 32, got: false },
     { id: 'gun', x: gateX - 260, y: G - 32, got: false },
   ];
+  if (tier >= 2) items.push({ id: 'spark', x: sparkX, y: G - 28, got: false });
+  if (tier === 2) {
+    items.push(
+      { id: 'goldplate', x: cX + 280, y: G - 34, got: false },
+      { id: 'blueplate', x: cX + 500, y: G - 34, got: false },
+    );
+  }
+  if (tier === 4) items.push({ id: 'goldhelm', x: cX + 160, y: G - 34, got: false });
+  if (tier === 5) items.push({ id: 'bluehelm', x: cX + 160, y: G - 34, got: false });
   const pace = 24 + tier * 6;
   const enemies = [
     librarian('lib-open', 400, 368, 452, 2, 18, 0.55),
@@ -483,19 +498,49 @@ function buildStage(tier) {
   const relay = { x: topX + 170, y: topY, r: 52 };
   const stageName = names[tier];
   const signs = [
-    { x: 78, text: stageName, once: 'Empty hands. Space jumps. E attacks. The wheel cycles weapons. F confirms the relay. I opens armor.' },
+    { x: 78, text: stageName, once: tier === 1
+      ? 'Open grass. No armor and no spark. The relay is up two steps. Hold Space. One hop clears a step. F confirms.'
+      : 'Empty hands. Space jumps. E attacks. The wheel cycles weapons. F confirms the relay. I opens armor.' },
     { x: 168, text: 'Shield', once: 'Shield. Hold Q. Fireballs from the front bounce off.' },
-    { x: bX + 150, text: 'Sword', once: 'Sword in hand. E cuts a slash. Librarians pace and hop.' },
-    { x: cX + 110, text: 'Helm', once: 'Gold helm. It adds one damage to the sword and the axe. Press I to look at it. The rise pauses.' },
+    { x: bX + 150, text: 'Sword', once: 'Sword in hand. E cuts a slash. Librarians pace, hop, and spit a small acid splat.' },
     { x: hallX + 1240, text: 'Skimmer', once: tier >= 4
       ? 'Skimmers cruise above the floor and fire down on a slant. Jump, then E. Hold Q if the bolt is in front of you.'
       : 'Skimmers cruise above the floor. Jump, then E.' },
     { x: hallX + 2280, text: 'Axe', once: 'Axe before the gate. E chops. The wheel still swaps weapons.' },
-    { x: sparkX, text: 'Spark', once: 'Hemi spark. Press Space again in the air. One hop will not clear the shaft.' },
     { x: gateX - 260, text: 'Rifle', once: 'Rifle before the gate. E fires. The wheel still swaps weapons.' },
-    { x: relay.x, y: relay.y, text: 'Relay', once: 'Hemi relay. F confirms the block this run started on. The gate on the floor stays shut until then.' },
-    { x: gateX - 20, text: 'Gate', once: 'The boss waits just behind this gate. The door stays shut until the Shard or the Hex drops.' },
+    { x: relay.x, y: relay.y, text: 'Relay', once: tier === 1
+      ? 'Hemi relay. Hold Space up the steps. F confirms. The spark is on the next rise.'
+      : 'Hemi relay. F confirms the block this run started on. The gate on the floor stays shut until then.' },
+    { x: gateX - 20, text: 'Gate', once: 'The boss fires as you come up to this gate. You do not have to cross it first. It chases when it is hurt, or when you are down to two marks. The door stays shut until the Shard or the Hex drops.' },
   ];
+  if (tier >= 2) {
+    signs.push({
+      x: sparkX,
+      text: 'Spark',
+      once: 'Hemi spark. Press Space again in the air. One hop will not clear this shaft. It stays with you after you pick it up.',
+    });
+  }
+  if (tier === 2) {
+    signs.push({
+      x: cX + 280,
+      text: 'Chest',
+      once: 'Chest plate only. Gold hits harder. Blue swings and shoots faster. Press I to wear one. Helms are on the last two rises.',
+    });
+  }
+  if (tier === 4) {
+    signs.push({
+      x: cX + 160,
+      text: 'Helm',
+      once: 'Gold helm. It adds one damage to the sword and the axe. Press I to look at it. The rise pauses.',
+    });
+  }
+  if (tier === 5) {
+    signs.push({
+      x: cX + 160,
+      text: 'Helm',
+      once: 'Blue helm. You run faster. Press I to look at it. The rise pauses.',
+    });
+  }
   if (tier >= 4) {
     signs.push({
       x: hallX + 1100,
@@ -555,9 +600,36 @@ function writeWear(armor) {
   try { localStorage.setItem(WEAR_KEY, JSON.stringify({ helm, chest })); } catch { /* this visit still wears it */ }
 }
 
+function readGear() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GEAR_KEY) || '{}');
+    const owned = Array.isArray(raw.owned) ? raw.owned.filter((id) => GEAR_IDS.includes(id)) : [];
+    const weapon = ARM_ORDER.includes(raw.weapon) ? raw.weapon : null;
+    return { owned, weapon };
+  } catch {
+    return { owned: [], weapon: null };
+  }
+}
+
+function writeGear() {
+  if (!state) return;
+  const owned = GEAR_IDS.filter((id) => state.inv[id]);
+  const weapon = ARM_ORDER.includes(state.weapon) ? state.weapon : null;
+  try { localStorage.setItem(GEAR_KEY, JSON.stringify({ owned, weapon })); } catch { /* this visit still keeps it */ }
+}
+
+function weaponFrom(owned, saved) {
+  const itemFor = { sword: 'blade', axe: 'axe', gun: 'gun' };
+  if (saved && owned.has(itemFor[saved])) return saved;
+  for (const arm of ARM_ORDER) {
+    if (owned.has(itemFor[arm])) return arm;
+  }
+  return null;
+}
+
 function bossRest(parity, tier) {
-  const base = parity === 'odd' ? 1.2 : 1.75;
-  return Math.max(0.48, base - (Math.max(1, tier) - 1) * 0.24);
+  const base = parity === 'odd' ? 0.85 : 1.15;
+  return Math.max(0.36, base - (Math.max(1, tier) - 1) * 0.14);
 }
 
 function bossBoltCount(tier) {
@@ -653,8 +725,13 @@ function plantBoss(level, stamp) {
     max: hp,
     minX: level.gate.x + 46,
     maxX: level.exit.x - 78,
+    homeMin: level.gate.x + 46,
+    homeMax: level.exit.x - 78,
     dir: -1,
-    speed: (even ? 26 : 36) + tier * 6,
+    baseSpeed: ((even ? 26 : 36) + tier * 6) * 1.2,
+    chaseSpeed: ((even ? 34 : 48) + tier * 8) * 1.7,
+    speed: ((even ? 26 : 36) + tier * 6) * 1.2,
+    chase: false,
     sprite: 'assets/wisp/00.png',
     artLeft: true,
     drawH: 78,
@@ -673,8 +750,12 @@ function startGame(zoneId) {
   const hero = resolveHero();
   const level = buildStage(ZONE_TIER[zone]);
   const wear = readWear();
+  const gear = readGear();
+  const owned = new Set(gear.owned);
+  if (wear.helm) owned.add(wear.helm);
+  if (wear.chest) owned.add(wear.chest);
   for (const item of level.items) {
-    if (item.id === wear.helm || item.id === wear.chest) item.got = true;
+    if (owned.has(item.id)) item.got = true;
   }
   const stamp = stampRun();
   plantPage(level, stamp);
@@ -704,21 +785,21 @@ function startGame(zoneId) {
       gait: 0,
     },
     level,
-    weapon: null,
+    weapon: weaponFrom(owned, gear.weapon),
     maxHp: 5,
     armor: { helm: wear.helm, chest: wear.chest },
     inv: {
       eye: false,
-      blade: false,
-      axe: false,
-      gun: false,
-      spark: false,
+      blade: owned.has('blade'),
+      axe: owned.has('axe'),
+      gun: owned.has('gun'),
+      spark: owned.has('spark'),
       filament: false,
-      goldhelm: wear.helm === 'goldhelm',
-      goldplate: wear.chest === 'goldplate',
-      bluehelm: wear.helm === 'bluehelm',
-      blueplate: wear.chest === 'blueplate',
-      shield: false,
+      goldhelm: owned.has('goldhelm'),
+      goldplate: owned.has('goldplate'),
+      bluehelm: owned.has('bluehelm'),
+      blueplate: owned.has('blueplate'),
+      shield: owned.has('shield'),
     },
     shieldPing: 0,
     sealOpen: false,
@@ -763,11 +844,10 @@ function startGame(zoneId) {
     ? `Hemi #${stamp.block} is ${even ? 'even' : 'odd'}`
     : 'Hemi is quiet, so this run is even';
   const bossName = even ? 'Shard' : 'Hex';
-  const wornNames = [wear.helm, wear.chest]
-    .map((id) => ARMOR.find((piece) => piece.id === id)?.name)
-    .filter(Boolean);
-  const wornLine = wornNames.length ? ` ${wornNames.join(' and ')} still on.` : '';
-  toast(`${stamped}. A ${bossName} waits behind the gate.${wornLine} The sword is ahead on ${level.name}.`);
+  const gearLine = owned.size
+    ? ' What you picked up is still with you.'
+    : ` The sword is ahead on ${level.name}.`;
+  toast(`${stamped}. A ${bossName} waits behind the gate.${gearLine}`);
 }
 
 const CLEAR_KEY = 'relay-zone-clears';
@@ -794,8 +874,10 @@ function goalLine() {
   const boss = state.level?.enemies?.find((enemy) => enemy.kind === 'boss' && enemy.hp > 0);
   let line = 'The gate is open. Walk through the door';
   if (!state.inv.blade) line = 'Find the sword';
-  else if (!state.inv.spark) line = 'Find the spark. One hop will not clear the shaft';
-  else if (!state.powered) line = 'Climb the shaft and confirm the relay';
+  else if ((state.level.tier || 1) > 1 && !state.inv.spark) line = 'Find the spark. One hop will not clear the shaft';
+  else if (!state.powered) line = state.level.tier === 1
+    ? 'Climb the steps and confirm the relay'
+    : 'Climb the shaft and confirm the relay';
   else if (boss) line = `Drop the ${boss.name}, then take the door`;
   const page = state.level?.page;
   if (page && !page.got) line += ' · grab the glowing page ahead';
@@ -989,6 +1071,7 @@ function toggleArmor(id) {
   else state.armor[meta.slot] = id;
   applyArmor();
   writeWear(state.armor);
+  writeGear();
   renderBag();
   toast(state.armor[meta.slot] === id ? `${meta.name} equipped.` : `${meta.name} taken off.`);
 }
@@ -1185,6 +1268,7 @@ function grant(id) {
     applyArmor();
     writeWear(state.armor);
   }
+  writeGear();
   renderHud();
   const worth = {
     blade: 100, axe: 120, gun: 160, spark: 250, shield: 140,
@@ -1208,6 +1292,7 @@ function equipOwned(arm) {
     return;
   }
   state.weapon = arm;
+  writeGear();
   renderHud();
   const verb = arm === 'gun' ? 'E fires.' : arm === 'axe' ? 'E chops.' : 'E slashes.';
   toast(`${item.name} in hand. ${verb}`);
@@ -1250,7 +1335,7 @@ function tryUse() {
   const bossName = boss?.name || 'boss';
 
   if (near(relay.x, relay.y, relay.r)) {
-    if (!state.inv.spark) {
+    if ((state.level.tier || 1) > 1 && !state.inv.spark) {
       toast('The relay is dark. The Hemi spark is on the hall floor.');
       return;
     }
@@ -1305,9 +1390,52 @@ function paceHopper(enemy, dt) {
   if (!enemy.speed) return;
   enemy.x += enemy.dir * enemy.speed * dt;
   if (enemy.x < enemy.minX || enemy.x > enemy.maxX) {
-    enemy.dir *= -1;
     enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX, enemy.x));
+    if (!enemy.chase) enemy.dir *= -1;
   }
+}
+
+function pressBoss(enemy, player) {
+  const low = enemy.hp <= enemy.max * 0.5 || player.hp <= 2;
+  enemy.chase = low;
+  if (!low) {
+    enemy.minX = enemy.homeMin;
+    enemy.maxX = enemy.homeMax;
+    enemy.speed = enemy.baseSpeed;
+    return;
+  }
+  const gateX = state.level.gate.x;
+  const px = player.x + player.w / 2;
+  enemy.minX = Math.max(gateX - 280, Math.min(enemy.homeMin, px - 28));
+  enemy.maxX = Math.min(state.level.exit.x - 36, Math.max(enemy.homeMax, px + 28));
+  if (enemy.minX > enemy.maxX) enemy.minX = enemy.maxX;
+  enemy.speed = enemy.chaseSpeed;
+  const mid = enemy.x + enemy.w / 2;
+  if (px < mid - 8) enemy.dir = -1;
+  else if (px > mid + 8) enemy.dir = 1;
+}
+
+function spitAcid(enemy, player, dt) {
+  enemy.shotCd = (enemy.shotCd ?? 0.4) - dt;
+  const origin = enemy.x + enemy.w / 2;
+  const dx = player.x + player.w / 2 - origin;
+  const dy = (player.y + player.h / 2) - (enemy.y + 12);
+  if (Math.abs(dy) > 64 || Math.abs(dx) > 168 || Math.abs(dx) < 28 || enemy.shotCd > 0) return;
+  const dir = dx < 0 ? -1 : 1;
+  enemy.dir = dir;
+  enemy.shotCd = 1.65;
+  state.shots.push({
+    x: origin + dir * 12,
+    y: enemy.y + 8,
+    w: 7,
+    h: 7,
+    vx: dir * 112,
+    vy: -78,
+    life: 1.35,
+    color: '#b6ff3a',
+    acid: true,
+    friendly: false,
+  });
 }
 
 function update(dt) {
@@ -1476,7 +1604,9 @@ function update(dt) {
   for (const enemy of state.level.enemies) {
     if (enemy.hp <= 0) continue;
     if (enemy.kind === 'librarian' || enemy.kind === 'plate' || enemy.kind === 'boss') {
+      if (enemy.kind === 'boss') pressBoss(enemy, player);
       paceHopper(enemy, dt);
+      if (enemy.kind === 'librarian') spitAcid(enemy, player, dt);
       const rise = (enemy.baseY ?? enemy.y) - enemy.y;
       if (rise > (state.hopPeak || 0)) state.hopPeak = rise;
     } else if (enemy.kind === 'flyer') {
@@ -1518,14 +1648,13 @@ function update(dt) {
       const origin = enemy.x + enemy.w / 2;
       const dx = player.x + player.w / 2 - origin;
       const dy = Math.abs((player.y + player.h / 2) - (enemy.y + enemy.h / 2));
-      const pastGate = player.x > state.level.gate.x;
       const tier = state.level.tier || 1;
-      const reach = 230 + (tier - 1) * 36;
-      const dyBand = 100 + (tier - 1) * 18;
-      if (state.sealOpen && pastGate && dy < dyBand && Math.abs(dx) < reach && Math.abs(dx) > 28 && enemy.cooldown <= 0) {
+      const reach = (enemy.chase ? 340 : 280) + (tier - 1) * 28;
+      const dyBand = (enemy.chase ? 150 : 120) + (tier - 1) * 12;
+      if (dy < dyBand && Math.abs(dx) < reach && Math.abs(dx) > 16 && enemy.cooldown <= 0) {
         const dir = dx < 0 ? -1 : 1;
         enemy.dir = dir;
-        enemy.cooldown = bossRest(enemy.parity, tier);
+        enemy.cooldown = bossRest(enemy.parity, tier) * (enemy.chase ? 0.55 : 1);
         fireBossVolley(enemy, origin, dir);
       }
     } else if (enemy.kind === 'turret' || enemy.kind === 'ember') {
@@ -1591,6 +1720,7 @@ function update(dt) {
   }
 
   for (const shot of state.shots) {
+    if (shot.acid) shot.vy = Math.min(280, (shot.vy || 0) + 760 * dt);
     shot.x += shot.vx * dt;
     shot.y += (shot.vy || 0) * dt;
     shot.life -= dt;
@@ -1628,7 +1758,10 @@ function update(dt) {
     if (item.got) continue;
     const cx = player.x + player.w / 2;
     const cy = player.y + player.h / 2;
-    if (Math.hypot(cx - item.x, cy - item.y) < 28) grant(item.id);
+    if (Math.hypot(cx - item.x, cy - item.y) < 28) {
+      grant(item.id);
+      item.got = true;
+    }
   }
   takePage();
 
@@ -1733,7 +1866,7 @@ function driveBot(dt) {
   let goal = state.level.exit.x + 24;
   if (!state.inv.blade) goal = blade.x;
   else if (plate && player.x < plate.x + 24) goal = plate.x - 8;
-  else if (!state.inv.spark) goal = spark.x;
+  else if ((state.level.tier || 1) > 1 && !state.inv.spark && spark) goal = spark.x;
   else if (!state.powered) {
     const step = ledgeAbove(150);
     if (step) goal = step.x + Math.min(120, step.w / 2);
@@ -1866,65 +1999,353 @@ function win() {
   showSelect(note);
 }
 
-function drawBackdrop(shakeX, shakeY) {
-  const camX = state.cam.x;
-  ctx.save();
-  ctx.translate(Math.round(shakeX), Math.round(shakeY));
-  const horizon = Math.round(viewH * 0.62);
-  ctx.fillStyle = '#0b1c2a';
+function zoneTheme() {
+  return THEME[state.zone] || THEME.hemi;
+}
+
+function surfacePalette(plat) {
+  const zone = state.zone || 'hemi';
+  if (plat.kind === 'ceil') {
+    const ceil = {
+      hemi: { body: '#2a4a30', top: '#6fbf58', mortar: '#16301c' },
+      wart: { body: '#6a4634', top: '#d7b07a', mortar: '#3e2a1e' },
+      cart: { body: '#1a3a22', top: '#2f8a44', mortar: '#0e2416' },
+      gale: { body: '#3d6278', top: '#f4fbff', mortar: '#244858' },
+      crown: { body: '#241816', top: '#ff5a1a', mortar: '#100c0a' },
+    };
+    return ceil[zone] || ceil.hemi;
+  }
+  if (plat.kind === 'glide') {
+    const glide = {
+      hemi: { body: '#6a4428', top: '#8fd35a', mortar: '#3d2816', cap: 4 },
+      wart: { body: '#7a5340', top: '#e2c090', mortar: '#4a3022', cap: 4 },
+      cart: { body: '#3d5a28', top: '#7ed957', mortar: '#243816', cap: 4 },
+      gale: { body: '#7eb4d0', top: '#ffffff', mortar: '#4e86a4', cap: 6 },
+      crown: { body: '#3a2a28', top: '#ff7a32', mortar: '#1a1210', cap: 3 },
+    };
+    return glide[zone] || glide.hemi;
+  }
+  const ground = {
+    hemi: { body: '#6b4124', top: '#3ea84a', mortar: '#4a2c16', cap: 6, dress: 'grass' },
+    wart: { body: '#7a5340', top: '#c4925a', mortar: '#4a3024', cap: 5, dress: 'rock' },
+    cart: { body: '#241c12', top: '#1f8a3c', mortar: '#140e08', cap: 8, dress: 'jungle' },
+    gale: { body: '#6f9bb4', top: '#ffffff', mortar: '#3e6e88', cap: 10, dress: 'snow' },
+    crown: { body: '#2c2624', top: '#ff5c1c', mortar: '#161210', cap: 3, dress: 'lava' },
+  };
+  return ground[zone] || ground.hemi;
+}
+
+function drawGroundDress(plat, pal) {
+  if (!pal.dress || plat.h < 40) return;
+  const y = plat.y;
+  if (pal.dress === 'grass') {
+    for (let x = plat.x + 6; x < plat.x + plat.w - 4; x += 18) {
+      const n = Math.abs(Math.round(x / 18));
+      ctx.fillStyle = n % 3 === 0 ? '#b6f07a' : '#2f8f3c';
+      ctx.fillRect(x, y - 4, 2, 4);
+      ctx.fillRect(x + 3, y - 6, 2, 6);
+      ctx.fillRect(x + 6, y - 3, 2, 3);
+      if (n % 7 === 0) {
+        ctx.fillStyle = n % 2 === 0 ? '#ffd56a' : '#ff8aa3';
+        ctx.fillRect(x + 3, y - 8, 2, 2);
+      }
+    }
+  } else if (pal.dress === 'rock') {
+    for (let x = plat.x + 10; x < plat.x + plat.w - 8; x += 34) {
+      const n = Math.abs(Math.round(x));
+      const h = 6 + (n % 5);
+      ctx.fillStyle = '#6a4632';
+      ctx.fillRect(x, y - h, 10, h);
+      ctx.fillStyle = '#e2c090';
+      ctx.fillRect(x, y - h, 10, 2);
+    }
+  } else if (pal.dress === 'jungle') {
+    for (let x = plat.x + 12; x < plat.x + plat.w - 8; x += 28) {
+      const n = Math.abs(Math.round(x / 4));
+      ctx.fillStyle = '#1e7a38';
+      ctx.fillRect(x, y - 8, 10, 8);
+      ctx.fillStyle = '#46c45a';
+      ctx.fillRect(x + 2, y - 12, 6, 5);
+      if (n % 2 === 0) {
+        ctx.fillStyle = '#143018';
+        ctx.fillRect(x + 14, y + 6, 2, 8 + (n % 10));
+      }
+    }
+  } else if (pal.dress === 'snow') {
+    for (let x = plat.x + 8; x < plat.x + plat.w - 6; x += 22) {
+      const n = Math.abs(Math.round(x));
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, y - 2, 10, 2);
+      if (n % 3 === 0) {
+        ctx.fillStyle = '#5f7e92';
+        ctx.fillRect(x + 4, y - 8, 7, 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x + 4, y - 8, 7, 3);
+      }
+      if (n % 4 === 1) {
+        ctx.fillStyle = '#9fd4ea';
+        ctx.fillRect(x + 12, y + 8, 9, 3);
+      }
+    }
+  } else if (pal.dress === 'lava') {
+    for (let x = plat.x + 8; x < plat.x + plat.w; x += 16) {
+      const n = Math.abs(Math.round(x / 8));
+      if (n % 3 === 0) {
+        ctx.fillStyle = n % 2 === 0 ? '#ffb020' : '#ff4a10';
+        ctx.fillRect(x, plat.y + 8, 2, 8 + (n % 6));
+      }
+    }
+  }
+}
+
+function screenSpan(parallax, spacing) {
+  const shift = state.cam.x * parallax;
+  const first = Math.floor(shift / spacing) - 1;
+  const last = first + Math.ceil(viewW / spacing) + 3;
+  return { first, last, shift };
+}
+
+function fillRidge(color, parallax, spacing, base, amp) {
+  const camShift = state.cam.x * parallax;
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(0, viewH);
-  ctx.lineTo(0, horizon);
-  for (let sx = 0; sx <= viewW + 48; sx += 28) {
-    const step = Math.floor((sx + camX * 0.16) / 28);
-    const peak = horizon - 16 - (step * 19) % 36 - (step % 3) * 8;
+  ctx.lineTo(0, base);
+  for (let sx = 0; sx <= viewW + spacing; sx += spacing) {
+    const n = Math.floor((sx + camShift) / spacing);
+    const peak = base - 8 - (Math.abs(n * 19) % amp) - (Math.abs(n) % 3) * 4;
     ctx.lineTo(sx, peak);
-    ctx.lineTo(sx + 16, peak + 14);
+    ctx.lineTo(sx + spacing * 0.55, Math.min(base, peak + amp * 0.45));
   }
   ctx.lineTo(viewW, viewH);
   ctx.closePath();
   ctx.fill();
+}
 
-  const spacing = 132;
-  const parallax = camX * 0.38;
-  const first = Math.floor(parallax / spacing) - 1;
-  const last = first + Math.ceil(viewW / spacing) + 3;
+function fillPeaks(color, snow, parallax, spacing, base, amp) {
+  const { first, last } = screenSpan(parallax, spacing);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(0, viewH);
+  ctx.lineTo(0, base);
   for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * spacing - parallax);
-    const archH = 58 + (Math.abs(i) % 4) * 12;
-    const top = 22 + (Math.abs(i) % 3) * 8;
-    ctx.fillStyle = '#102838';
-    ctx.fillRect(sx, top, 8, archH);
-    ctx.fillRect(sx + 48, top, 8, archH);
-    ctx.fillRect(sx - 4, top, 64, 5);
-    ctx.fillStyle = '#16384a';
-    ctx.fillRect(sx + 8, top + 5, 40, 4);
-    if (Math.abs(i) % 2 === 0) {
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = '#7ee7ff';
-      ctx.fillRect(sx + 26, top + 12, 3, 5);
-      ctx.globalAlpha = 0.16;
-      ctx.fillRect(sx + 16, top + 16, 22, 16);
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.fillStyle = '#1b5168';
-      ctx.fillRect(sx + 18, top + 18, 5, 12);
-      ctx.fillRect(sx + 30, top + 24, 5, 10);
-    }
-    ctx.fillStyle = '#0e2a3a';
-    ctx.fillRect(sx + 18, top - 12, 2, 12);
-    ctx.fillRect(sx + 36, top - 9, 2, 9);
+    const sx = Math.round(i * spacing - state.cam.x * parallax);
+    const h = amp * 0.4 + (Math.abs(i * 13) % amp);
+    ctx.lineTo(sx, base);
+    ctx.lineTo(sx + spacing * 0.5, base - h);
+    ctx.lineTo(sx + spacing, base);
   }
+  ctx.lineTo(viewW, viewH);
+  ctx.closePath();
+  ctx.fill();
+  if (!snow) return;
+  ctx.fillStyle = snow;
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * spacing - state.cam.x * parallax);
+    const h = amp * 0.4 + (Math.abs(i * 13) % amp);
+    const tip = base - h;
+    ctx.beginPath();
+    ctx.moveTo(sx + spacing * 0.5 - 8, tip + 12);
+    ctx.lineTo(sx + spacing * 0.5, tip);
+    ctx.lineTo(sx + spacing * 0.5 + 8, tip + 12);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
 
-  for (let i = 0; i < 16; i += 1) {
-    const speed = 8 + (i % 4) * 5;
-    const px = ((i * 181 + state.time * speed - camX * 0.12) % viewW + viewW) % viewW;
-    const py = 12 + ((i * 41) % Math.max(24, Math.floor(viewH * 0.42)));
-    ctx.globalAlpha = 0.22 + (i % 3) * 0.08;
-    ctx.fillStyle = i % 2 === 0 ? '#7ee7ff' : '#fff6d8';
+function drawClouds(parallax) {
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.88;
+  for (let i = 0; i < 6; i += 1) {
+    const span = viewW + 180;
+    const x = ((i * 220 - state.cam.x * parallax) % span + span) % span - 40;
+    const y = 16 + (i % 3) * 22;
+    ctx.fillRect(x, y, 36, 8);
+    ctx.fillRect(x + 8, y - 6, 22, 8);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMotes(color, count, rise) {
+  for (let i = 0; i < count; i += 1) {
+    const speed = 10 + (i % 4) * 6;
+    const px = ((i * 181 + state.time * speed - state.cam.x * 0.12) % viewW + viewW) % viewW;
+    const span = Math.max(40, viewH - 8);
+    const py = ((i * 47 + (rise ? state.time * speed * 0.35 : 0)) % span + span) % span;
+    ctx.globalAlpha = 0.28 + (i % 3) * 0.12;
+    ctx.fillStyle = i % 2 === 0 ? color : '#ffffff';
     ctx.fillRect(px, py, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
   }
   ctx.globalAlpha = 1;
+}
+
+function drawTrees(parallax, spacing, trunk, leaf, leafLight) {
+  const { first, last } = screenSpan(parallax, spacing);
+  const ground = Math.round(viewH * 0.78);
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * spacing - state.cam.x * parallax);
+    const h = 28 + (Math.abs(i) % 4) * 12;
+    ctx.fillStyle = trunk;
+    ctx.fillRect(sx, ground - h, 6, h);
+    ctx.fillStyle = leaf;
+    ctx.fillRect(sx - 14, ground - h - 6, 34, 14);
+    ctx.fillStyle = leafLight;
+    ctx.fillRect(sx - 8, ground - h - 16, 22, 12);
+  }
+}
+
+function drawPines(parallax, spacing, base) {
+  const { first, last } = screenSpan(parallax, spacing);
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * spacing - state.cam.x * parallax);
+    ctx.fillStyle = '#4a3428';
+    ctx.fillRect(sx, base - 10, 4, 10);
+    ctx.fillStyle = '#243c30';
+    ctx.fillRect(sx - 8, base - 18, 20, 8);
+    ctx.fillRect(sx - 5, base - 26, 14, 8);
+    ctx.fillRect(sx - 2, base - 32, 8, 6);
+  }
+}
+
+function drawGrassFar() {
+  drawClouds(0.06);
+  fillRidge('#4eaf62', 0.12, 36, Math.round(viewH * 0.6), 26);
+  fillRidge('#2f8a45', 0.24, 28, Math.round(viewH * 0.74), 16);
+  drawTrees(0.42, 108, '#6a4324', '#24913c', '#b6f07a');
+}
+
+function drawMountainFar() {
+  ctx.fillStyle = '#ffe08a';
+  ctx.beginPath();
+  ctx.arc(viewW - 78, 42, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff6d0';
+  ctx.beginPath();
+  ctx.arc(viewW - 78, 42, 10, 0, Math.PI * 2);
+  ctx.fill();
+  fillPeaks('#c4926a', null, 0.1, 170, Math.round(viewH * 0.52), 100);
+  fillPeaks('#7a5138', null, 0.24, 120, Math.round(viewH * 0.72), 62);
+  const { first, last } = screenSpan(0.24, 120);
+  ctx.fillStyle = '#4e3428';
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * 120 - state.cam.x * 0.24);
+    const h = 62 * 0.4 + (Math.abs(i * 13) % 62);
+    ctx.fillRect(sx + 46, Math.round(viewH * 0.72) - h + 18, 2, 16);
+    ctx.fillRect(sx + 62, Math.round(viewH * 0.72) - h + 28, 2, 12);
+  }
+  drawPines(0.42, 100, Math.round(viewH * 0.8));
+}
+
+function drawJungleFar() {
+  ctx.fillStyle = '#0a2418';
+  ctx.fillRect(0, Math.round(viewH * 0.42), viewW, viewH);
+  const far = screenSpan(0.12, 48);
+  for (let i = far.first; i <= far.last; i += 1) {
+    const sx = Math.round(i * 48 - state.cam.x * 0.12);
+    const top = Math.round(viewH * 0.3) + (Math.abs(i) % 4) * 6;
+    ctx.fillStyle = '#103820';
+    ctx.fillRect(sx, top, 36, 20);
+    ctx.fillStyle = '#1a6434';
+    ctx.fillRect(sx + 6, top - 10, 24, 14);
+  }
+  const near = screenSpan(0.36, 96);
+  const ground = Math.round(viewH * 0.84);
+  for (let i = near.first; i <= near.last; i += 1) {
+    const sx = Math.round(i * 96 - state.cam.x * 0.36);
+    const trunkH = 40 + (Math.abs(i) % 3) * 14;
+    const cy = ground - trunkH;
+    ctx.fillStyle = '#4a3018';
+    ctx.fillRect(sx, cy, 8, trunkH);
+    ctx.fillStyle = '#146b32';
+    ctx.fillRect(sx - 22, cy - 2, 52, 16);
+    ctx.fillStyle = '#1f8a40';
+    ctx.fillRect(sx - 14, cy - 14, 36, 14);
+    ctx.fillStyle = '#8adf5a';
+    ctx.fillRect(sx - 6, cy - 22, 18, 10);
+    if (Math.abs(i) % 2 === 0) {
+      ctx.fillStyle = '#2ea050';
+      ctx.fillRect(sx + 18, cy + 10, 2, 26 + (Math.abs(i) % 4) * 6);
+    }
+  }
+  ctx.fillStyle = '#0c3018';
+  ctx.fillRect(0, 0, viewW, 26);
+  const fringe = screenSpan(0.06, 26);
+  ctx.fillStyle = '#145c2c';
+  for (let i = fringe.first; i <= fringe.last; i += 1) {
+    const sx = Math.round(i * 26 - state.cam.x * 0.06);
+    ctx.fillRect(sx, 16 + (Math.abs(i) % 3) * 4, 20, 12);
+  }
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = '#e4ffc0';
+  for (let i = 0; i < 4; i += 1) {
+    const x = ((i * 140 - state.cam.x * 0.04) % viewW + viewW) % viewW;
+    ctx.fillRect(x, 0, 10, Math.round(viewH * 0.7));
+  }
+  ctx.globalAlpha = 1;
+  drawMotes('#d8ffb0', 18, false);
+}
+
+function drawTundraFar() {
+  const haze = ctx.createLinearGradient(0, Math.round(viewH * 0.45), 0, viewH);
+  haze.addColorStop(0, 'rgba(220, 242, 252, 0)');
+  haze.addColorStop(1, 'rgba(214, 236, 248, 0.72)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, Math.round(viewH * 0.45), viewW, viewH);
+  fillPeaks('#d5e8f4', '#ffffff', 0.08, 180, Math.round(viewH * 0.5), 86);
+  fillPeaks('#7eb0cc', '#f7fbff', 0.22, 110, Math.round(viewH * 0.7), 54);
+  const { first, last } = screenSpan(0.36, 84);
+  const ground = Math.round(viewH * 0.8);
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * 84 - state.cam.x * 0.36);
+    const rh = 10 + (Math.abs(i) % 4) * 6;
+    ctx.fillStyle = '#5f8eaa';
+    ctx.fillRect(sx, ground - rh, 14, rh);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx - 2, ground - rh - 2, 18, 4);
+    if (Math.abs(i) % 3 === 0) {
+      ctx.fillStyle = '#6a5344';
+      ctx.fillRect(sx + 26, ground - 30, 3, 30);
+      ctx.fillRect(sx + 18, ground - 22, 14, 2);
+      ctx.fillStyle = '#d6eef8';
+      ctx.fillRect(sx + 16, ground - 24, 16, 3);
+    }
+  }
+  drawMotes('#ffffff', 36, true);
+}
+
+function drawVolcanoFar() {
+  fillPeaks('#241816', null, 0.14, 150, Math.round(viewH * 0.58), 84);
+  fillPeaks('#120c0c', null, 0.3, 100, Math.round(viewH * 0.76), 46);
+  const { first, last } = screenSpan(0.14, 150);
+  ctx.fillStyle = '#ff5a18';
+  for (let i = first; i <= last; i += 1) {
+    const sx = Math.round(i * 150 - state.cam.x * 0.14);
+    const h = 84 * 0.4 + (Math.abs(i * 13) % 84);
+    const tip = Math.round(viewH * 0.58) - h;
+    ctx.fillRect(sx + 150 * 0.5 - 2, tip + 4, 4, 16);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#ffb020';
+    ctx.fillRect(sx + 150 * 0.5 - 1, tip, 2, 6);
+    ctx.fillStyle = '#ff5a18';
+    ctx.globalAlpha = 1;
+  }
+  const glow = ctx.createLinearGradient(0, viewH * 0.7, 0, viewH);
+  glow.addColorStop(0, 'rgba(255, 60, 10, 0)');
+  glow.addColorStop(1, 'rgba(255, 70, 16, 0.55)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, Math.round(viewH * 0.7), viewW, viewH);
+  drawMotes('#ffb060', 22, true);
+}
+
+function drawBackdrop(shakeX, shakeY) {
+  const biome = zoneTheme().biome;
+  ctx.save();
+  ctx.translate(Math.round(shakeX), Math.round(shakeY));
+  if (biome === 'grass') drawGrassFar();
+  else if (biome === 'mountain') drawMountainFar();
+  else if (biome === 'jungle') drawJungleFar();
+  else if (biome === 'tundra') drawTundraFar();
+  else drawVolcanoFar();
   ctx.restore();
 }
 
@@ -1934,21 +2355,12 @@ function draw() {
   const shakeY = state.shake > 0 ? (Math.random() - 0.5) * 3 : 0;
   ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, viewW, viewH);
-  const theme = THEME.hemi;
+  const theme = zoneTheme();
   const sky = ctx.createLinearGradient(0, 0, 0, viewH);
   sky.addColorStop(0, theme.sky0);
   sky.addColorStop(1, theme.sky1);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, viewW, viewH);
-
-  for (let i = 0; i < 48; i += 1) {
-    const px = ((i * 97 - cam.x * 0.15) % viewW + viewW) % viewW;
-    const py = (i * 53) % Math.max(80, viewH - 20);
-    ctx.fillStyle = i % 4 === 0 ? '#fff6d8' : theme.star;
-    ctx.globalAlpha = 0.35;
-    ctx.fillRect(px, py, i % 4 === 0 ? 2 : 1, i % 4 === 0 ? 2 : 1);
-  }
-  ctx.globalAlpha = 1;
   drawBackdrop(shakeX, shakeY);
 
   ctx.save();
@@ -1961,14 +2373,16 @@ function draw() {
   ctx.globalAlpha = 1;
 
   for (const plat of state.level.platforms) {
-    const pal = PAL[plat.kind] || PAL.wart;
+    const pal = surfacePalette(plat);
     const drawH = Math.min(plat.h, 96);
+    const cap = pal.cap || 3;
     ctx.fillStyle = pal.body;
     ctx.fillRect(plat.x, plat.y, plat.w, drawH);
     ctx.fillStyle = pal.top;
-    ctx.fillRect(plat.x, plat.y, plat.w, 3);
+    ctx.fillRect(plat.x, plat.y, plat.w, cap);
     ctx.fillStyle = pal.mortar;
-    for (let x = plat.x + 8; x < plat.x + plat.w; x += 8) ctx.fillRect(x, plat.y, 1, drawH);
+    for (let x = plat.x + 8; x < plat.x + plat.w; x += 8) ctx.fillRect(x, plat.y + cap, 1, drawH - cap);
+    drawGroundDress(plat, pal);
   }
 
   const gate = state.level.gate;
@@ -2077,6 +2491,15 @@ function draw() {
       ctx.fillStyle = '#ffd15a';
       ctx.beginPath();
       ctx.arc(shot.x + 4, shot.y + 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (shot.acid) {
+      ctx.fillStyle = '#d6ff6a';
+      ctx.beginPath();
+      ctx.arc(shot.x + 3, shot.y + 3, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3d8a14';
+      ctx.beginPath();
+      ctx.arc(shot.x + 2, shot.y + 2, 2, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.save();
@@ -2762,6 +3185,68 @@ function boot() {
   if (qs.get('sim') === 'return') runReturnTest();
   if (qs.get('sim') === 'wear') runWearTest();
   if (qs.get('sim') === 'gale') runGaleTest();
+  if (qs.get('sim') === 'kit') runKitTest();
+}
+
+function runKitTest() {
+  localStorage.removeItem(WEAR_KEY);
+  localStorage.removeItem(GEAR_KEY);
+  startGame('hemi');
+  const shield = state.level.items.find((item) => item.id === 'shield');
+  const blade = state.level.items.find((item) => item.id === 'blade');
+  state.player.iframes = 99;
+  state.player.y = G - 40;
+  state.player.x = shield.x - 6;
+  update(1 / 60);
+  state.player.x = blade.x - 6;
+  update(1 / 60);
+  const took = !!state.inv.shield && !!state.inv.blade && state.weapon === 'sword' && shield.got && blade.got;
+  startGame('gale');
+  const galeBlade = state.level.items.find((item) => item.id === 'blade');
+  const galeShield = state.level.items.find((item) => item.id === 'shield');
+  const kept = state.zone === 'gale'
+    && state.inv.shield && state.inv.blade && state.weapon === 'sword'
+    && galeBlade?.got && galeShield?.got;
+  startGame('hemi');
+  const lib = state.level.enemies.find((enemy) => enemy.kind === 'librarian');
+  state.player.x = lib.x - 90;
+  state.player.y = G - 30;
+  state.player.iframes = 99;
+  lib.shotCd = 0;
+  state.shots = [];
+  update(1 / 60);
+  const acid = state.shots.find((shot) => shot.acid);
+  const boss = state.level.enemies.find((enemy) => enemy.kind === 'boss');
+  const gateX = state.level.gate.x;
+  state.player.x = gateX - 50;
+  state.player.y = G - 30;
+  boss.cooldown = 0;
+  boss.hp = boss.max;
+  state.sealOpen = false;
+  state.shots = [];
+  const homeX = boss.x;
+  update(1 / 60);
+  const early = state.shots.filter((shot) => !shot.friendly && !shot.acid).length;
+  const stillBehind = boss.x > gateX;
+  boss.hp = Math.max(1, Math.floor(boss.max * 0.4));
+  state.player.x = gateX - 200;
+  for (let i = 0; i < 50; i += 1) update(1 / 60);
+  const chased = boss.x < homeX - 10 && boss.x < gateX + 80;
+  const report = {
+    status: took && kept && acid && early >= 1 && stillBehind && chased ? 'pass' : 'fail',
+    took,
+    kept,
+    acid: !!acid,
+    early,
+    stillBehind,
+    chased,
+    bossX: Math.round(boss.x),
+    homeX: Math.round(homeX),
+    gateX: Math.round(gateX),
+  };
+  document.body.dataset.status = report.status;
+  el.sim.hidden = false;
+  el.sim.textContent = JSON.stringify(report);
 }
 
 function runReturnTest() {
@@ -2799,8 +3284,22 @@ function runReturnTest() {
   el.sim.textContent = JSON.stringify(report);
 }
 
+function armorOn(tier) {
+  return buildStage(tier).items
+    .filter((item) => ARMOR.some((piece) => piece.id === item.id))
+    .map((item) => item.id)
+    .sort()
+    .join();
+}
+
 function runWearTest() {
+  const layout = armorOn(1) === ''
+    && armorOn(2) === 'blueplate,goldplate'
+    && armorOn(3) === ''
+    && armorOn(4) === 'goldhelm'
+    && armorOn(5) === 'bluehelm';
   localStorage.removeItem(WEAR_KEY);
+  localStorage.removeItem(GEAR_KEY);
   startGame('hemi');
   state.inv.goldhelm = true;
   state.inv.blueplate = true;
@@ -2818,15 +3317,20 @@ function runWearTest() {
     && state.armor.chest === 'blueplate'
     && state.inv.goldhelm && state.inv.blueplate
     && !state.inv.bluehelm && !state.inv.goldplate
-    && gold?.got && bluePlate?.got
-    && !blueHelm?.got && !goldPlate?.got;
+    && gold?.got
+    && !blueHelm && !bluePlate && !goldPlate;
   setBag(true);
   toggleArmor('goldhelm');
   const bare = state.armor.helm;
   startGame('crown');
-  const dropped = state.zone === 'crown' && state.armor.helm == null && state.armor.chest === 'blueplate';
+  const crownHelm = state.level.items.find((item) => item.id === 'bluehelm');
+  const dropped = state.zone === 'crown'
+    && state.armor.helm == null
+    && state.armor.chest === 'blueplate'
+    && crownHelm && !crownHelm.got;
   const report = {
-    status: kept && bare == null && dropped ? 'pass' : 'fail',
+    status: layout && kept && bare == null && dropped ? 'pass' : 'fail',
+    layout,
     kept,
     bare,
     dropped,
@@ -2906,28 +3410,47 @@ function runGaleTest() {
 }
 
 function runBagTest() {
+  const layout = armorOn(1) === ''
+    && armorOn(2) === 'blueplate,goldplate'
+    && armorOn(3) === ''
+    && armorOn(4) === 'goldhelm'
+    && armorOn(5) === 'bluehelm';
+  localStorage.removeItem(WEAR_KEY);
+  localStorage.removeItem(GEAR_KEY);
   startGame('hemi');
-  for (let i = 0; i < 40 * 60 && !state.simDone && !(state.inv.goldhelm && state.inv.bluehelm && state.inv.goldplate); i += 1) {
-    update(1 / 60);
-  }
-  const found = { goldhelm: !!state.inv.goldhelm, bluehelm: !!state.inv.bluehelm };
+  const bareRise = !state.level.items.some((item) => ARMOR.some((piece) => piece.id === item.id));
+  startGame('wart');
+  const plate = state.level.items.find((item) => item.id === 'goldplate');
+  state.player.x = plate.x - 8;
+  state.player.y = G - 40;
+  state.player.iframes = 2;
+  update(1 / 60);
+  const pickedChest = !!state.inv.goldplate && state.armor.chest === 'goldplate';
+  const noHelmOnSpan = !state.level.items.some((item) => item.id === 'goldhelm' || item.id === 'bluehelm');
+  startGame('gale');
+  state.inv.goldhelm = true;
+  state.inv.bluehelm = true;
   setBag(true);
   const x0 = state.player.x;
   const t0 = state.time;
   update(1);
   const paused = state.mode === 'bag' && state.player.x === x0 && state.time === t0;
-  if (state.inv.bluehelm) toggleArmor('bluehelm');
+  toggleArmor('bluehelm');
   const swapped = state.armor.helm;
   if (swapped) toggleArmor(swapped);
   const cleared = state.armor.helm;
-  if (state.inv.goldhelm) toggleArmor('goldhelm');
+  toggleArmor('goldhelm');
   state.player.iframes = 0;
   renderBag();
   state.simDone = true;
   draw();
   const report = {
-    status: found.goldhelm && found.bluehelm && paused && state.armor.helm === 'goldhelm' && cleared == null && swapped === 'bluehelm' ? 'pass' : 'fail',
-    found,
+    status: layout && bareRise && pickedChest && noHelmOnSpan && paused
+      && state.armor.helm === 'goldhelm' && cleared == null && swapped === 'bluehelm' ? 'pass' : 'fail',
+    layout,
+    bareRise,
+    pickedChest,
+    noHelmOnSpan,
     paused,
     swapped,
     cleared,
@@ -2962,22 +3485,68 @@ function runGateTest() {
     update(1 / 60);
   }
   const bladedHp = plate.hp;
+  const steps = state.level.platforms.filter((plat) => /^h\d+$/.test(plat.id)).sort((a, b) => b.y - a.y);
+  const gaps = [];
+  let footY = G;
+  for (const step of steps) {
+    gaps.push(footY - step.y);
+    footY = step.y;
+  }
+  const noSpark = !state.level.items.some((item) => item.id === 'spark');
+  const singleSteps = gaps.length === 2 && gaps.every((gap) => gap < HEMIGO.single - 8);
+  input.right = false;
+  input.left = false;
+  input.attackQueued = false;
+  state.inv.spark = false;
+  state.player.iframes = 999;
+  state.player.vx = 0;
+  state.player.vy = 0;
+  state.player.x = steps[0].x + 180;
+  state.player.y = G - 30;
+  state.player.onGround = true;
+  let climbed = false;
+  for (let i = 0; i < 360 && !climbed; i += 1) {
+    input.jumpRelease = false;
+    if (state.player.onGround && ledgeAbove(HEMIGO.single + 2)) input.jumpQueued = true;
+    update(1 / 60);
+    if (state.player.y + state.player.h <= steps[steps.length - 1].y + 2) climbed = true;
+  }
   const relay = state.level.relay;
   state.player.x = relay.x - 8;
   state.player.y = relay.y - 30;
   state.player.onGround = true;
   state.inv.spark = false;
+  state.powered = false;
+  state.sealOpen = false;
   tryUse();
-  const darkWithoutSpark = state.powered;
+  const riseOpen = state.powered && state.sealOpen;
+  localStorage.removeItem(GEAR_KEY);
+  startGame('wart');
+  const spanSpark = state.level.items.some((item) => item.id === 'spark');
+  const spanRelay = state.level.relay;
+  state.player.x = spanRelay.x - 8;
+  state.player.y = spanRelay.y - 30;
+  state.player.onGround = true;
+  state.inv.spark = false;
+  tryUse();
+  const spanDark = !state.powered;
   state.inv.spark = true;
   tryUse();
-  const confirmed = state.powered && state.sealOpen;
+  const spanLit = state.powered && state.sealOpen;
   const report = {
-    status: bareHp === plate.max && bladedHp <= 0 && !darkWithoutSpark && confirmed ? 'pass' : 'fail',
+    status: bareHp === plate.max && bladedHp <= 0 && noSpark && singleSteps && climbed
+      && riseOpen && spanSpark && spanDark && spanLit ? 'pass' : 'fail',
     bareHp,
     bladedHp,
-    darkWithoutSpark,
-    confirmed,
+    noSpark,
+    singleSteps,
+    gaps,
+    climbed,
+    riseOpen,
+    spanSpark,
+    spanDark,
+    spanLit,
+    y: Math.round(state.player.y),
   };
   document.body.dataset.status = report.status;
   el.sim.hidden = false;
