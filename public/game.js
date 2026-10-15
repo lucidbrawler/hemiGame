@@ -4,18 +4,23 @@
  * Rise has no armor and no spark. Its relay is two steps, one hop each.
  * Span has the spark and the chest plates. Gale and Crown have the helms.
  * Each one is longer and harder. Gale and Crown skimmers fire down on a slant.
- * Space jumps. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
+ * Space jumps. Hold Ctrl, S, or Down to crouch. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
  * F confirms the relay. I pauses on the armor bag. The chip is the Hemi mainnet block.
  * Health is five Hemi marks. Gold armor hits harder. Blue armor is faster.
  * Pick Hemigo or Orami, then a map. Both use the same gear.
  * The Hemi block you start on plants one glowing page, its score, and the boss at the door.
  * An even block calls a Shard. An odd block calls a Hex.
+ * Each boss alternates one shot and a two-note shape, then takes a longer rest.
+ * Later rises play that same phrase a little faster.
+ * Zone skies, set dressing, and ground use the painted segment art.
  */
 const GRAV = 1700;
 const VIEW_W = 480;
 const VIEW_H = 270;
 const G = 860;
 const SHAFT = 90;
+const STAND_H = 30;
+const CROUCH_H = 16;
 
 const HEMIGO = {
   id: 'hemigo',
@@ -499,8 +504,8 @@ function buildStage(tier) {
   const stageName = names[tier];
   const signs = [
     { x: 78, text: stageName, once: tier === 1
-      ? 'Open grass. No armor and no spark. The relay is up two steps. Hold Space. One hop clears a step. F confirms.'
-      : 'Empty hands. Space jumps. E attacks. The wheel cycles weapons. F confirms the relay. I opens armor.' },
+      ? 'Open grass. No armor and no spark. The relay is up two steps. Hold Space. One hop clears a step. Hold Ctrl or Down to crouch. F confirms.'
+      : 'Empty hands. Space jumps. Hold Ctrl or Down to crouch. E attacks. The wheel cycles weapons. F confirms the relay. I opens armor.' },
     { x: 168, text: 'Shield', once: 'Shield. Hold Q. Fireballs from the front bounce off.' },
     { x: bX + 150, text: 'Sword', once: 'Sword in hand. E cuts a slash. Librarians pace, hop, and spit a small acid splat.' },
     { x: hallX + 1240, text: 'Skimmer', once: tier >= 4
@@ -511,7 +516,7 @@ function buildStage(tier) {
     { x: relay.x, y: relay.y, text: 'Relay', once: tier === 1
       ? 'Hemi relay. Hold Space up the steps. F confirms. The spark is on the next rise.'
       : 'Hemi relay. F confirms the block this run started on. The gate on the floor stays shut until then.' },
-    { x: gateX - 20, text: 'Gate', once: 'The boss fires as you come up to this gate. You do not have to cross it first. It chases when it is hurt, or when you are down to two marks. The door stays shut until the Shard or the Hex drops.' },
+    { x: gateX - 20, text: 'Gate', once: 'The boss fires as you come up to this gate. One shot, then two spaced shots, then a longer rest. It chases when it is hurt, or when you are down to two marks. The door stays shut until the Shard or the Hex drops.' },
   ];
   if (tier >= 2) {
     signs.push({
@@ -552,7 +557,7 @@ function buildStage(tier) {
     signs.push({
       x: hallX + 6020,
       text: 'Crown',
-      once: 'The high span needs the spark. The boss throws a wider volley on each later rise.',
+      once: 'The high span needs the spark. The boss keeps the same two shapes and plays them a little faster.',
     });
   }
   return {
@@ -627,47 +632,157 @@ function weaponFrom(owned, saved) {
   return null;
 }
 
-function bossRest(parity, tier) {
-  const base = parity === 'odd' ? 0.85 : 1.15;
-  return Math.max(0.36, base - (Math.max(1, tier) - 1) * 0.14);
+function bossBeat(parity, tier) {
+  const odd = parity === 'odd';
+  const base = odd ? 1.05 : 1.28;
+  const floor = odd ? 0.84 : 1.02;
+  return Math.max(floor, base - (Math.max(1, tier) - 1) * 0.05);
 }
 
-function bossBoltCount(tier) {
-  return Math.max(1, Math.min(5, tier || 1));
+// Heavy is the rest after the two-note shape. Light is the rest after the single shot.
+function bossRest(parity, tier, heavy) {
+  const beat = bossBeat(parity, tier);
+  return heavy ? beat * 1.7 : beat;
 }
 
-function fireBossVolley(enemy, origin, dir) {
-  const tier = state.level.tier || 1;
-  const odd = enemy.parity === 'odd';
-  const speed = odd ? 168 : 136;
-  const color = odd ? '#ff9a3c' : '#9aefff';
-  const patterns = [
-    { vx: 1, vy: 0, oy: 8, ox: 14 },
-    { vx: 0.78, vy: 0.62, oy: 10, ox: 22 },
-    { vx: 0.84, vy: -0.48, oy: 2, ox: 18 },
-    { vx: 0.58, vy: 0.92, oy: 14, ox: 26 },
-    { vx: 0.92, vy: 0.34, oy: 6, ox: 20 },
-  ];
-  const n = bossBoltCount(tier);
-  for (let i = 0; i < n; i += 1) {
-    const pat = patterns[i];
-    state.shots.push({
-      x: origin + dir * pat.ox,
-      y: enemy.y + pat.oy,
-      w: 12,
-      h: 8,
-      vx: dir * speed * pat.vx,
-      vy: speed * pat.vy,
-      life: 2.4,
-      color,
-      friendly: false,
-    });
+function bossMoves(parity) {
+  // The two notes of a shape share a speed, so the gap stays the same at any range.
+  // Shard goes low, then high. Hex goes high, then low. The high note clears a standing player.
+  if (parity === 'odd') {
+    return [
+      {
+        name: 'jab',
+        speed: 132,
+        color: '#ff9a3c',
+        gap: 0,
+        bolts: [{ vx: 1, vy: 0, oy: 10, ox: 16, w: 12, h: 7 }],
+      },
+      {
+        name: 'fork',
+        speed: 120,
+        color: '#ffd2a1',
+        gap: 0.44,
+        bolts: [
+          { vx: 1, vy: 0, oy: -16, ox: 16, w: 12, h: 5 },
+          { vx: 1, vy: 0, oy: 16, ox: 18, w: 12, h: 7 },
+        ],
+      },
+    ];
   }
+  return [
+    {
+      name: 'line',
+      speed: 110,
+      color: '#9aefff',
+      gap: 0,
+      bolts: [{ vx: 1, vy: 0, oy: 10, ox: 16, w: 14, h: 6 }],
+    },
+    {
+      name: 'pair',
+      speed: 100,
+      color: '#dff8ff',
+      gap: 0.54,
+      bolts: [
+        { vx: 1, vy: 0, oy: 16, ox: 16, w: 13, h: 6 },
+        { vx: 1, vy: 0, oy: -16, ox: 16, w: 13, h: 5 },
+      ],
+    },
+  ];
+}
+
+function spawnBossBolt(enemy, origin, dir, speed, move, pat, note) {
+  state.shots.push({
+    x: origin + dir * pat.ox,
+    y: enemy.y + pat.oy,
+    w: pat.w,
+    h: pat.h,
+    vx: dir * speed * pat.vx,
+    vy: speed * pat.vy,
+    life: 2.8,
+    color: move.color,
+    friendly: false,
+    bossMove: move.name,
+    bossNote: note,
+  });
+}
+
+function beginBossTell(enemy, dir) {
+  const moves = bossMoves(enemy.parity);
+  const move = moves[(enemy.phrase || 0) % moves.length];
+  enemy.phrase = (enemy.phrase || 0) + 1;
+  enemy.loaded = move;
+  enemy.dir = dir;
+  enemy.tell = move.bolts.length;
+  const heavy = move.bolts.length > 1;
+  enemy.windup = (enemy.parity === 'odd' ? 0.28 : 0.36) + (heavy ? 0.12 : 0);
+}
+
+function releaseBossMove(enemy, origin) {
+  const move = enemy.loaded;
+  if (!move) return;
+  const dir = enemy.dir || -1;
+  const tier = state.level.tier || 1;
+  const speed = move.speed + Math.min(18, (tier - 1) * 4);
+  const heavy = move.bolts.length > 1;
+  spawnBossBolt(enemy, origin, dir, speed, move, move.bolts[0], 0);
+  if (heavy) {
+    enemy.follow = {
+      t: move.gap,
+      dir,
+      speed,
+      move,
+      pat: move.bolts[1],
+      note: 1,
+    };
+    enemy.tell = 1;
+    enemy.cooldown = move.gap + bossRest(enemy.parity, tier, true);
+  } else {
+    enemy.follow = null;
+    enemy.tell = 0;
+    enemy.cooldown = bossRest(enemy.parity, tier, false);
+  }
+  enemy.loaded = null;
+  enemy.windup = 0;
 }
 
 
 function aabb(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function crouchHeld() {
+  if (keys.has('control') || keys.has('arrowdown') || keys.has('s')) return true;
+  return input.stickY > 0.62;
+}
+
+function bodyFits(x, y, w, h) {
+  const box = { x, y, w, h };
+  for (const solid of solids()) {
+    if (aabb(box, solid)) return false;
+  }
+  return true;
+}
+
+function setBodyHeight(player, nextH) {
+  if (nextH === player.h) return true;
+  if (nextH > player.h) {
+    const y = player.y - (nextH - player.h);
+    if (!bodyFits(player.x, y, player.w, nextH)) return false;
+    player.y = y;
+  } else {
+    player.y += player.h - nextH;
+  }
+  player.h = nextH;
+  return true;
+}
+
+function applyCrouch(player) {
+  const canHop = player.onGround || player.coyote > 0;
+  const hopping = state.jumpBuffer > 0 && canHop;
+  const want = !hopping && player.onGround && player.vy >= 0 && crouchHeld();
+  const nextH = want ? CROUCH_H : STAND_H;
+  setBodyHeight(player, nextH);
+  player.crouch = player.h < STAND_H - 1;
 }
 
 const PAGE_WORTH = [80, 140, 200];
@@ -741,7 +856,12 @@ function plantBoss(level, stamp) {
     hopV: even ? -280 : -330,
     vy: 0,
     grounded: true,
-    cooldown: Math.max(0.4, (even ? 1.4 : 1.0) - (tier - 1) * 0.16),
+    phrase: 0,
+    windup: 0,
+    follow: null,
+    tell: 0,
+    loaded: null,
+    cooldown: bossBeat(even ? 'even' : 'odd', tier) + 0.35,
   });
 }
 
@@ -766,9 +886,10 @@ function startGame(zoneId) {
     hero,
     player: {
       x: 72,
-      y: G - 30,
+      y: G - STAND_H,
       w: 22,
-      h: 30,
+      h: STAND_H,
+      crouch: false,
       vx: 0,
       vy: 0,
       face: 1,
@@ -808,7 +929,7 @@ function startGame(zoneId) {
     fireHits: 0,
     cam: { x: 0, y: 0 },
     shake: 0,
-    checkpoint: { x: 72, y: G - 30 },
+    checkpoint: { x: 72, y: G - STAND_H },
     nextCheck: 0,
     time: 0,
     score: 0,
@@ -1140,7 +1261,10 @@ function attackBox(body) {
   const reach = kind === 'axe' ? 44 : kind === 'sword' ? 40 : 16;
   let h = kind === 'axe' ? 30 : 18;
   let y = kind === 'axe' ? body.y + 2 : body.y + 8;
-  if (!body.onGround) {
+  if (body.crouch) {
+    y = body.y + 1;
+    h = Math.max(8, body.h - 2);
+  } else if (!body.onGround) {
     y -= 26;
     h += 26;
   }
@@ -1178,6 +1302,7 @@ function meleePower(kind) {
 function runSpeed() {
   let speed = state.hero.speed;
   if (state.armor.helm === 'bluehelm') speed *= 1.34;
+  if (state.player && state.player.crouch) speed *= 0.45;
   if (shielding()) speed *= 0.42;
   return speed;
 }
@@ -1247,6 +1372,8 @@ function hurt(fromX) {
 
 function respawn(why) {
   const player = state.player;
+  player.h = STAND_H;
+  player.crouch = false;
   player.x = state.checkpoint.x;
   player.y = state.checkpoint.y;
   player.vx = 0;
@@ -1479,6 +1606,7 @@ function update(dt) {
     requestJump();
     input.jumpQueued = false;
   }
+  applyCrouch(player);
   if (state.jumpBuffer > 0) state.jumpBuffer -= dt;
 
   const canGround = player.onGround || player.coyote > 0;
@@ -1596,7 +1724,7 @@ function update(dt) {
   if (player.onGround) {
     const markers = state.level.checks;
     while (state.nextCheck < markers.length && player.x > markers[state.nextCheck]) {
-      state.checkpoint = { x: player.x, y: player.y };
+      state.checkpoint = { x: player.x, y: player.y + player.h - STAND_H };
       state.nextCheck += 1;
     }
   }
@@ -1644,18 +1772,30 @@ function update(dt) {
     }
     enemy.flash = Math.max(0, (enemy.flash || 0) - dt);
     if (enemy.kind === 'boss') {
-      enemy.cooldown -= dt;
       const origin = enemy.x + enemy.w / 2;
       const dx = player.x + player.w / 2 - origin;
       const dy = Math.abs((player.y + player.h / 2) - (enemy.y + enemy.h / 2));
       const tier = state.level.tier || 1;
-      const reach = (enemy.chase ? 340 : 280) + (tier - 1) * 28;
-      const dyBand = (enemy.chase ? 150 : 120) + (tier - 1) * 12;
-      if (dy < dyBand && Math.abs(dx) < reach && Math.abs(dx) > 16 && enemy.cooldown <= 0) {
-        const dir = dx < 0 ? -1 : 1;
-        enemy.dir = dir;
-        enemy.cooldown = bossRest(enemy.parity, tier) * (enemy.chase ? 0.55 : 1);
-        fireBossVolley(enemy, origin, dir);
+      if (enemy.follow) {
+        enemy.follow.t -= dt;
+        if (enemy.follow.t <= 0) {
+          const follow = enemy.follow;
+          enemy.follow = null;
+          enemy.tell = 0;
+          spawnBossBolt(enemy, origin, follow.dir, follow.speed, follow.move, follow.pat, follow.note);
+        }
+      }
+      if (enemy.windup > 0) {
+        enemy.windup -= dt;
+        if (enemy.windup <= 0) releaseBossMove(enemy, origin);
+      } else {
+        enemy.cooldown -= dt;
+        const reach = (enemy.chase ? 320 : 260) + (tier - 1) * 18;
+        const dyBand = (enemy.chase ? 140 : 112) + (tier - 1) * 8;
+        const inArc = dy < dyBand && Math.abs(dx) < reach && Math.abs(dx) > 16;
+        if (inArc && enemy.cooldown <= 0 && !enemy.follow) {
+          beginBossTell(enemy, dx < 0 ? -1 : 1);
+        }
       }
     } else if (enemy.kind === 'turret' || enemy.kind === 'ember') {
       enemy.cooldown -= dt;
@@ -2003,99 +2143,44 @@ function zoneTheme() {
   return THEME[state.zone] || THEME.hemi;
 }
 
-function surfacePalette(plat) {
-  const zone = state.zone || 'hemi';
-  if (plat.kind === 'ceil') {
-    const ceil = {
-      hemi: { body: '#2a4a30', top: '#6fbf58', mortar: '#16301c' },
-      wart: { body: '#6a4634', top: '#d7b07a', mortar: '#3e2a1e' },
-      cart: { body: '#1a3a22', top: '#2f8a44', mortar: '#0e2416' },
-      gale: { body: '#3d6278', top: '#f4fbff', mortar: '#244858' },
-      crown: { body: '#241816', top: '#ff5a1a', mortar: '#100c0a' },
-    };
-    return ceil[zone] || ceil.hemi;
-  }
-  if (plat.kind === 'glide') {
-    const glide = {
-      hemi: { body: '#6a4428', top: '#8fd35a', mortar: '#3d2816', cap: 4 },
-      wart: { body: '#7a5340', top: '#e2c090', mortar: '#4a3022', cap: 4 },
-      cart: { body: '#3d5a28', top: '#7ed957', mortar: '#243816', cap: 4 },
-      gale: { body: '#7eb4d0', top: '#ffffff', mortar: '#4e86a4', cap: 6 },
-      crown: { body: '#3a2a28', top: '#ff7a32', mortar: '#1a1210', cap: 3 },
-    };
-    return glide[zone] || glide.hemi;
-  }
-  const ground = {
-    hemi: { body: '#6b4124', top: '#3ea84a', mortar: '#4a2c16', cap: 6, dress: 'grass' },
-    wart: { body: '#7a5340', top: '#c4925a', mortar: '#4a3024', cap: 5, dress: 'rock' },
-    cart: { body: '#241c12', top: '#1f8a3c', mortar: '#140e08', cap: 8, dress: 'jungle' },
-    gale: { body: '#6f9bb4', top: '#ffffff', mortar: '#3e6e88', cap: 10, dress: 'snow' },
-    crown: { body: '#2c2624', top: '#ff5c1c', mortar: '#161210', cap: 3, dress: 'lava' },
-  };
-  return ground[zone] || ground.hemi;
+const SEG = 'assets/segments/';
+const ROUND_TREES = [1, 2, 3, 4, 5, 6].map((n) => `green-trees/green-trees-${n}.png`);
+const PINES = [1, 2, 3, 4, 5, 6, 7].map((n) => `pine-trees/pine-trees-${n}.png`);
+const TRUNKS = [1, 2, 3].map((n) => `tree-trunks/tree-trunks-${n}.png`);
+const HANG_VINES = [1, 3, 5, 6, 7, 8].map((n) => `hanging-vines/hanging-vines-${n}.png`)
+  .concat([1, 3].map((n) => `jungle-vines/jungle-vines-${n}.png`));
+const CLOUDS = [3, 4, 5, 7].map((n) => `white-clouds/white-clouds-${n}.png`);
+const SNOW_PEAKS = [1, 2, 3, 4].map((n) => `snowy-mountains/snowy-mountains-${n}.png`);
+const POSTS = [1, 2, 3].map((n) => `posts/post-${n}.png`);
+const VOLCANO_PEAKS = ['volcanoes/volcanoes-2.png', 'volcanoes/volcanoes-3.png'];
+const LAVA_LIP = ['lava-flow/lava-flow-1.png', 'lava-flow/lava-flow-2.png'];
+const LAVA_CRACK = ['lava-flow/lava-flow-3.png', 'lava-flow/lava-flow-4.png'];
+const SCENE_FILES = [
+  'blue-sky/blue-sky-1.png',
+  'yellow-sun.png',
+  'rolling-green-hills.png',
+  'brown-mountains.png',
+  'volcanoes/volcanoes-7.png',
+  'red-sky.png',
+  'ground/grass.png',
+  'ground/stone.png',
+  'white-clouds/white-clouds-6.png',
+  'lava-flow/lava-flow-5.png',
+  'snowy-mountains/snowy-mountains-4.png',
+].concat(CLOUDS, ROUND_TREES, PINES, TRUNKS, HANG_VINES, SNOW_PEAKS, POSTS, VOLCANO_PEAKS, LAVA_LIP, LAVA_CRACK);
+for (const file of SCENE_FILES) loadImage(`${SEG}${file}`);
+
+function sceneImg(file) {
+  return images[`${SEG}${file}`];
 }
 
-function drawGroundDress(plat, pal) {
-  if (!pal.dress || plat.h < 40) return;
-  const y = plat.y;
-  if (pal.dress === 'grass') {
-    for (let x = plat.x + 6; x < plat.x + plat.w - 4; x += 18) {
-      const n = Math.abs(Math.round(x / 18));
-      ctx.fillStyle = n % 3 === 0 ? '#b6f07a' : '#2f8f3c';
-      ctx.fillRect(x, y - 4, 2, 4);
-      ctx.fillRect(x + 3, y - 6, 2, 6);
-      ctx.fillRect(x + 6, y - 3, 2, 3);
-      if (n % 7 === 0) {
-        ctx.fillStyle = n % 2 === 0 ? '#ffd56a' : '#ff8aa3';
-        ctx.fillRect(x + 3, y - 8, 2, 2);
-      }
-    }
-  } else if (pal.dress === 'rock') {
-    for (let x = plat.x + 10; x < plat.x + plat.w - 8; x += 34) {
-      const n = Math.abs(Math.round(x));
-      const h = 6 + (n % 5);
-      ctx.fillStyle = '#6a4632';
-      ctx.fillRect(x, y - h, 10, h);
-      ctx.fillStyle = '#e2c090';
-      ctx.fillRect(x, y - h, 10, 2);
-    }
-  } else if (pal.dress === 'jungle') {
-    for (let x = plat.x + 12; x < plat.x + plat.w - 8; x += 28) {
-      const n = Math.abs(Math.round(x / 4));
-      ctx.fillStyle = '#1e7a38';
-      ctx.fillRect(x, y - 8, 10, 8);
-      ctx.fillStyle = '#46c45a';
-      ctx.fillRect(x + 2, y - 12, 6, 5);
-      if (n % 2 === 0) {
-        ctx.fillStyle = '#143018';
-        ctx.fillRect(x + 14, y + 6, 2, 8 + (n % 10));
-      }
-    }
-  } else if (pal.dress === 'snow') {
-    for (let x = plat.x + 8; x < plat.x + plat.w - 6; x += 22) {
-      const n = Math.abs(Math.round(x));
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, y - 2, 10, 2);
-      if (n % 3 === 0) {
-        ctx.fillStyle = '#5f7e92';
-        ctx.fillRect(x + 4, y - 8, 7, 6);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x + 4, y - 8, 7, 3);
-      }
-      if (n % 4 === 1) {
-        ctx.fillStyle = '#9fd4ea';
-        ctx.fillRect(x + 12, y + 8, 9, 3);
-      }
-    }
-  } else if (pal.dress === 'lava') {
-    for (let x = plat.x + 8; x < plat.x + plat.w; x += 16) {
-      const n = Math.abs(Math.round(x / 8));
-      if (n % 3 === 0) {
-        ctx.fillStyle = n % 2 === 0 ? '#ffb020' : '#ff4a10';
-        ctx.fillRect(x, plat.y + 8, 2, 8 + (n % 6));
-      }
-    }
-  }
+function artReady(img) {
+  return !!(img && img.complete && img.naturalWidth);
+}
+
+function blitArt(img, x, y, w, h) {
+  if (!artReady(img) || w < 1 || h < 1) return;
+  ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
 }
 
 function screenSpan(parallax, spacing) {
@@ -2105,248 +2190,258 @@ function screenSpan(parallax, spacing) {
   return { first, last, shift };
 }
 
-function fillRidge(color, parallax, spacing, base, amp) {
-  const camShift = state.cam.x * parallax;
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(0, viewH);
-  ctx.lineTo(0, base);
-  for (let sx = 0; sx <= viewW + spacing; sx += spacing) {
-    const n = Math.floor((sx + camShift) / spacing);
-    const peak = base - 8 - (Math.abs(n * 19) % amp) - (Math.abs(n) % 3) * 4;
-    ctx.lineTo(sx, peak);
-    ctx.lineTo(sx + spacing * 0.55, Math.min(base, peak + amp * 0.45));
-  }
-  ctx.lineTo(viewW, viewH);
-  ctx.closePath();
-  ctx.fill();
+function tileScreen(file, parallax, y, height) {
+  const img = sceneImg(file);
+  if (!artReady(img) || height < 2) return;
+  const w = img.naturalWidth * (height / img.naturalHeight);
+  const shift = state.cam.x * parallax;
+  let x = -((shift % w) + w) % w;
+  for (; x < viewW + 1; x += w) blitArt(img, x, y, w, height);
 }
 
-function fillPeaks(color, snow, parallax, spacing, base, amp) {
+function scatterScreen(files, parallax, spacing, foot, height, salt) {
   const { first, last } = screenSpan(parallax, spacing);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(0, viewH);
-  ctx.lineTo(0, base);
+  const nudge = salt || 0;
   for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * spacing - state.cam.x * parallax);
-    const h = amp * 0.4 + (Math.abs(i * 13) % amp);
-    ctx.lineTo(sx, base);
-    ctx.lineTo(sx + spacing * 0.5, base - h);
-    ctx.lineTo(sx + spacing, base);
-  }
-  ctx.lineTo(viewW, viewH);
-  ctx.closePath();
-  ctx.fill();
-  if (!snow) return;
-  ctx.fillStyle = snow;
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * spacing - state.cam.x * parallax);
-    const h = amp * 0.4 + (Math.abs(i * 13) % amp);
-    const tip = base - h;
-    ctx.beginPath();
-    ctx.moveTo(sx + spacing * 0.5 - 8, tip + 12);
-    ctx.lineTo(sx + spacing * 0.5, tip);
-    ctx.lineTo(sx + spacing * 0.5 + 8, tip + 12);
-    ctx.closePath();
-    ctx.fill();
+    const img = sceneImg(files[Math.abs(i + nudge) % files.length]);
+    if (!artReady(img)) continue;
+    const h = height * (0.8 + (Math.abs(i * 5 + nudge) % 4) * 0.07);
+    const w = img.naturalWidth * (h / img.naturalHeight);
+    const sx = i * spacing - state.cam.x * parallax;
+    blitArt(img, sx - w * 0.5, foot - h, w, h);
   }
 }
 
-function drawClouds(parallax) {
-  ctx.fillStyle = '#ffffff';
-  ctx.globalAlpha = 0.88;
-  for (let i = 0; i < 6; i += 1) {
-    const span = viewW + 180;
-    const x = ((i * 220 - state.cam.x * parallax) % span + span) % span - 40;
-    const y = 16 + (i % 3) * 22;
-    ctx.fillRect(x, y, 36, 8);
-    ctx.fillRect(x + 8, y - 6, 22, 8);
+function hangScreen(files, parallax, spacing, height) {
+  const { first, last } = screenSpan(parallax, spacing);
+  for (let i = first; i <= last; i += 1) {
+    const img = sceneImg(files[Math.abs(i) % files.length]);
+    if (!artReady(img)) continue;
+    const h = height * (0.62 + (Math.abs(i * 3) % 4) * 0.12);
+    const w = img.naturalWidth * (h / img.naturalHeight);
+    const sx = i * spacing - state.cam.x * parallax;
+    blitArt(img, sx, -6, w, h);
   }
+}
+
+function paintSun(y, h) {
+  const img = sceneImg('yellow-sun.png');
+  if (!artReady(img)) return;
+  const w = img.naturalWidth * (h / img.naturalHeight);
+  const span = viewW + w + 40;
+  const x = ((viewW * 0.78 - state.cam.x * 0.03) % span + span) % span - 20;
+  blitArt(img, x, y, w, h);
+}
+
+function paintGrassSky() {
+  tileScreen('blue-sky/blue-sky-1.png', 0.04, 0, Math.round(viewH * 0.52));
+  tileScreen('white-clouds/white-clouds-6.png', 0.08, Math.round(viewH * 0.02), Math.round(viewH * 0.16));
+  paintSun(Math.round(viewH * 0.06), Math.round(viewH * 0.14));
+  scatterScreen(CLOUDS, 0.14, 200, Math.round(viewH * 0.28), Math.round(viewH * 0.12));
+  tileScreen('rolling-green-hills.png', 0.2, Math.round(viewH * 0.34), Math.round(viewH * 0.24));
+}
+
+function paintMountainSky() {
+  paintSun(Math.round(viewH * 0.08), Math.round(viewH * 0.16));
+  tileScreen('white-clouds/white-clouds-6.png', 0.06, Math.round(viewH * 0.04), Math.round(viewH * 0.14));
+  tileScreen('brown-mountains.png', 0.14, Math.round(viewH * 0.22), Math.round(viewH * 0.42));
+  tileScreen('volcanoes/volcanoes-7.png', 0.26, Math.round(viewH * 0.36), Math.round(viewH * 0.3));
+}
+
+function paintJungleSky() {
+  hangScreen(HANG_VINES, 0.16, 48, Math.round(viewH * 0.5));
+  ctx.globalAlpha = 0.82;
+  scatterScreen(TRUNKS, 0.22, 110, Math.round(viewH * 0.74), Math.round(viewH * 0.32));
   ctx.globalAlpha = 1;
 }
 
-function drawMotes(color, count, rise) {
-  for (let i = 0; i < count; i += 1) {
-    const speed = 10 + (i % 4) * 6;
-    const px = ((i * 181 + state.time * speed - state.cam.x * 0.12) % viewW + viewW) % viewW;
-    const span = Math.max(40, viewH - 8);
-    const py = ((i * 47 + (rise ? state.time * speed * 0.35 : 0)) % span + span) % span;
-    ctx.globalAlpha = 0.28 + (i % 3) * 0.12;
-    ctx.fillStyle = i % 2 === 0 ? color : '#ffffff';
-    ctx.fillRect(px, py, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
-  }
-  ctx.globalAlpha = 1;
+function paintTundraSky() {
+  tileScreen('white-clouds/white-clouds-6.png', 0.05, Math.round(viewH * 0.05), Math.round(viewH * 0.18));
+  scatterScreen(SNOW_PEAKS, 0.1, 230, Math.round(viewH * 0.58), Math.round(viewH * 0.36), 0);
+  scatterScreen(SNOW_PEAKS, 0.22, 170, Math.round(viewH * 0.72), Math.round(viewH * 0.26), 2);
 }
 
-function drawTrees(parallax, spacing, trunk, leaf, leafLight) {
-  const { first, last } = screenSpan(parallax, spacing);
-  const ground = Math.round(viewH * 0.78);
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * spacing - state.cam.x * parallax);
-    const h = 28 + (Math.abs(i) % 4) * 12;
-    ctx.fillStyle = trunk;
-    ctx.fillRect(sx, ground - h, 6, h);
-    ctx.fillStyle = leaf;
-    ctx.fillRect(sx - 14, ground - h - 6, 34, 14);
-    ctx.fillStyle = leafLight;
-    ctx.fillRect(sx - 8, ground - h - 16, 22, 12);
-  }
-}
-
-function drawPines(parallax, spacing, base) {
-  const { first, last } = screenSpan(parallax, spacing);
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * spacing - state.cam.x * parallax);
-    ctx.fillStyle = '#4a3428';
-    ctx.fillRect(sx, base - 10, 4, 10);
-    ctx.fillStyle = '#243c30';
-    ctx.fillRect(sx - 8, base - 18, 20, 8);
-    ctx.fillRect(sx - 5, base - 26, 14, 8);
-    ctx.fillRect(sx - 2, base - 32, 8, 6);
-  }
-}
-
-function drawGrassFar() {
-  drawClouds(0.06);
-  fillRidge('#4eaf62', 0.12, 36, Math.round(viewH * 0.6), 26);
-  fillRidge('#2f8a45', 0.24, 28, Math.round(viewH * 0.74), 16);
-  drawTrees(0.42, 108, '#6a4324', '#24913c', '#b6f07a');
-}
-
-function drawMountainFar() {
-  ctx.fillStyle = '#ffe08a';
-  ctx.beginPath();
-  ctx.arc(viewW - 78, 42, 18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#fff6d0';
-  ctx.beginPath();
-  ctx.arc(viewW - 78, 42, 10, 0, Math.PI * 2);
-  ctx.fill();
-  fillPeaks('#c4926a', null, 0.1, 170, Math.round(viewH * 0.52), 100);
-  fillPeaks('#7a5138', null, 0.24, 120, Math.round(viewH * 0.72), 62);
-  const { first, last } = screenSpan(0.24, 120);
-  ctx.fillStyle = '#4e3428';
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * 120 - state.cam.x * 0.24);
-    const h = 62 * 0.4 + (Math.abs(i * 13) % 62);
-    ctx.fillRect(sx + 46, Math.round(viewH * 0.72) - h + 18, 2, 16);
-    ctx.fillRect(sx + 62, Math.round(viewH * 0.72) - h + 28, 2, 12);
-  }
-  drawPines(0.42, 100, Math.round(viewH * 0.8));
-}
-
-function drawJungleFar() {
-  ctx.fillStyle = '#0a2418';
-  ctx.fillRect(0, Math.round(viewH * 0.42), viewW, viewH);
-  const far = screenSpan(0.12, 48);
-  for (let i = far.first; i <= far.last; i += 1) {
-    const sx = Math.round(i * 48 - state.cam.x * 0.12);
-    const top = Math.round(viewH * 0.3) + (Math.abs(i) % 4) * 6;
-    ctx.fillStyle = '#103820';
-    ctx.fillRect(sx, top, 36, 20);
-    ctx.fillStyle = '#1a6434';
-    ctx.fillRect(sx + 6, top - 10, 24, 14);
-  }
-  const near = screenSpan(0.36, 96);
-  const ground = Math.round(viewH * 0.84);
-  for (let i = near.first; i <= near.last; i += 1) {
-    const sx = Math.round(i * 96 - state.cam.x * 0.36);
-    const trunkH = 40 + (Math.abs(i) % 3) * 14;
-    const cy = ground - trunkH;
-    ctx.fillStyle = '#4a3018';
-    ctx.fillRect(sx, cy, 8, trunkH);
-    ctx.fillStyle = '#146b32';
-    ctx.fillRect(sx - 22, cy - 2, 52, 16);
-    ctx.fillStyle = '#1f8a40';
-    ctx.fillRect(sx - 14, cy - 14, 36, 14);
-    ctx.fillStyle = '#8adf5a';
-    ctx.fillRect(sx - 6, cy - 22, 18, 10);
-    if (Math.abs(i) % 2 === 0) {
-      ctx.fillStyle = '#2ea050';
-      ctx.fillRect(sx + 18, cy + 10, 2, 26 + (Math.abs(i) % 4) * 6);
-    }
-  }
-  ctx.fillStyle = '#0c3018';
-  ctx.fillRect(0, 0, viewW, 26);
-  const fringe = screenSpan(0.06, 26);
-  ctx.fillStyle = '#145c2c';
-  for (let i = fringe.first; i <= fringe.last; i += 1) {
-    const sx = Math.round(i * 26 - state.cam.x * 0.06);
-    ctx.fillRect(sx, 16 + (Math.abs(i) % 3) * 4, 20, 12);
-  }
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = '#e4ffc0';
-  for (let i = 0; i < 4; i += 1) {
-    const x = ((i * 140 - state.cam.x * 0.04) % viewW + viewW) % viewW;
-    ctx.fillRect(x, 0, 10, Math.round(viewH * 0.7));
-  }
-  ctx.globalAlpha = 1;
-  drawMotes('#d8ffb0', 18, false);
-}
-
-function drawTundraFar() {
-  const haze = ctx.createLinearGradient(0, Math.round(viewH * 0.45), 0, viewH);
-  haze.addColorStop(0, 'rgba(220, 242, 252, 0)');
-  haze.addColorStop(1, 'rgba(214, 236, 248, 0.72)');
-  ctx.fillStyle = haze;
-  ctx.fillRect(0, Math.round(viewH * 0.45), viewW, viewH);
-  fillPeaks('#d5e8f4', '#ffffff', 0.08, 180, Math.round(viewH * 0.5), 86);
-  fillPeaks('#7eb0cc', '#f7fbff', 0.22, 110, Math.round(viewH * 0.7), 54);
-  const { first, last } = screenSpan(0.36, 84);
-  const ground = Math.round(viewH * 0.8);
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * 84 - state.cam.x * 0.36);
-    const rh = 10 + (Math.abs(i) % 4) * 6;
-    ctx.fillStyle = '#5f8eaa';
-    ctx.fillRect(sx, ground - rh, 14, rh);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(sx - 2, ground - rh - 2, 18, 4);
-    if (Math.abs(i) % 3 === 0) {
-      ctx.fillStyle = '#6a5344';
-      ctx.fillRect(sx + 26, ground - 30, 3, 30);
-      ctx.fillRect(sx + 18, ground - 22, 14, 2);
-      ctx.fillStyle = '#d6eef8';
-      ctx.fillRect(sx + 16, ground - 24, 16, 3);
-    }
-  }
-  drawMotes('#ffffff', 36, true);
-}
-
-function drawVolcanoFar() {
-  fillPeaks('#241816', null, 0.14, 150, Math.round(viewH * 0.58), 84);
-  fillPeaks('#120c0c', null, 0.3, 100, Math.round(viewH * 0.76), 46);
-  const { first, last } = screenSpan(0.14, 150);
-  ctx.fillStyle = '#ff5a18';
-  for (let i = first; i <= last; i += 1) {
-    const sx = Math.round(i * 150 - state.cam.x * 0.14);
-    const h = 84 * 0.4 + (Math.abs(i * 13) % 84);
-    const tip = Math.round(viewH * 0.58) - h;
-    ctx.fillRect(sx + 150 * 0.5 - 2, tip + 4, 4, 16);
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = '#ffb020';
-    ctx.fillRect(sx + 150 * 0.5 - 1, tip, 2, 6);
-    ctx.fillStyle = '#ff5a18';
-    ctx.globalAlpha = 1;
-  }
-  const glow = ctx.createLinearGradient(0, viewH * 0.7, 0, viewH);
-  glow.addColorStop(0, 'rgba(255, 60, 10, 0)');
-  glow.addColorStop(1, 'rgba(255, 70, 16, 0.55)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, Math.round(viewH * 0.7), viewW, viewH);
-  drawMotes('#ffb060', 22, true);
+function paintVolcanoSky() {
+  tileScreen('red-sky.png', 0.05, 0, Math.round(viewH * 0.58));
+  scatterScreen(VOLCANO_PEAKS, 0.18, 300, Math.round(viewH * 0.76), Math.round(viewH * 0.4));
+  tileScreen('lava-flow/lava-flow-5.png', 0.28, Math.round(viewH * 0.58), Math.round(viewH * 0.26));
 }
 
 function drawBackdrop(shakeX, shakeY) {
   const biome = zoneTheme().biome;
   ctx.save();
   ctx.translate(Math.round(shakeX), Math.round(shakeY));
-  if (biome === 'grass') drawGrassFar();
-  else if (biome === 'mountain') drawMountainFar();
-  else if (biome === 'jungle') drawJungleFar();
-  else if (biome === 'tundra') drawTundraFar();
-  else drawVolcanoFar();
+  if (biome === 'grass') paintGrassSky();
+  else if (biome === 'mountain') paintMountainSky();
+  else if (biome === 'jungle') paintJungleSky();
+  else if (biome === 'tundra') paintTundraSky();
+  else paintVolcanoSky();
   ctx.restore();
+}
+
+function drawFloorProps() {
+  const biome = zoneTheme().biome;
+  const files = biome === 'grass' ? ROUND_TREES
+    : biome === 'mountain' ? PINES
+      : biome === 'jungle' ? TRUNKS
+        : biome === 'tundra' ? POSTS.concat(['pine-trees/pine-trees-4.png'])
+          : null;
+  if (!files) return;
+  const spacing = biome === 'tundra' ? 300 : biome === 'jungle' ? 170 : 220;
+  const height = biome === 'tundra' ? 50 : biome === 'jungle' ? 100 : 76;
+  const left = state.cam.x - 60;
+  const right = state.cam.x + viewW + 60;
+  const gate = state.level.gate.x;
+  const exitX = state.level.exit.x;
+  const first = Math.floor(left / spacing) - 1;
+  const last = Math.ceil(right / spacing) + 1;
+  for (let i = first; i <= last; i += 1) {
+    const x = i * spacing + (Math.abs(i * 19) % 48) - 16;
+    if (x < 30 || x > exitX + 120) continue;
+    if (x < left - 40 || x > right + 40) continue;
+    if (Math.abs(x - gate) < 100 || Math.abs(x - exitX) < 80) continue;
+    const img = sceneImg(files[Math.abs(i) % files.length]);
+    if (!artReady(img)) continue;
+    const h = height + (Math.abs(i * 7) % 4) * 8;
+    const w = img.naturalWidth * (h / img.naturalHeight);
+    blitArt(img, x - w * 0.5, G - h + 6, w, h);
+  }
+}
+
+function drawGroundTile(plat, img, drawH, fit) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(plat.x, plat.y, plat.w, drawH);
+  ctx.clip();
+  if (!artReady(img)) {
+    ctx.fillStyle = '#5a3a22';
+    ctx.fillRect(plat.x, plat.y, plat.w, drawH);
+    ctx.restore();
+    return;
+  }
+  const thick = drawH >= 34;
+  const sliceH = thick ? img.naturalHeight : Math.max(8, Math.round(img.naturalHeight * 0.34));
+  const scale = thick ? (fit ? drawH / img.naturalHeight : 1) : drawH / sliceH;
+  const tw = img.naturalWidth * scale;
+  const th = sliceH * scale;
+  const left = state.cam.x - tw;
+  const right = state.cam.x + viewW + tw;
+  const start = plat.x + Math.floor((Math.max(plat.x, left) - plat.x) / tw) * tw;
+  for (let x = start; x < Math.min(plat.x + plat.w, right); x += tw) {
+    ctx.drawImage(
+      img,
+      0, 0, img.naturalWidth, sliceH,
+      Math.round(x), Math.round(plat.y), Math.round(tw), Math.round(th),
+    );
+  }
+  if (thick && !fit && th + 1 < drawH) {
+    const fillLeft = Math.max(plat.x, left);
+    const fillW = Math.min(plat.x + plat.w, right) - fillLeft;
+    if (fillW > 0) {
+      ctx.drawImage(
+        img,
+        0, img.naturalHeight - 5, img.naturalWidth, 5,
+        fillLeft, plat.y + th - 1, fillW, drawH - th + 2,
+      );
+    }
+  }
+  ctx.restore();
+}
+
+function washPlate(plat, drawH, color, alpha, mode) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(plat.x, plat.y, plat.w, drawH);
+  ctx.clip();
+  ctx.globalCompositeOperation = mode || 'source-over';
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.fillRect(plat.x, plat.y, plat.w, drawH);
+  ctx.restore();
+}
+
+function drawIcePlate(plat, drawH) {
+  drawGroundTile(plat, sceneImg('ground/stone.png'), drawH, true);
+  washPlate(plat, drawH, '#e7f6ff', 0.5);
+  ctx.fillStyle = '#f7fbff';
+  ctx.fillRect(plat.x, plat.y, plat.w, Math.min(6, drawH));
+  if (drawH < 30) return;
+  const img = sceneImg('snowy-mountains/snowy-mountains-4.png');
+  if (!artReady(img)) return;
+  const h = 18;
+  const w = img.naturalWidth * (h / img.naturalHeight);
+  const step = w + 28;
+  const left = state.cam.x - 10;
+  const right = state.cam.x + viewW + 10;
+  const start = Math.max(0, Math.floor((left - plat.x) / step));
+  const end = Math.ceil((Math.min(plat.x + plat.w, right) - plat.x) / step);
+  for (let i = start; i <= end; i += 1) {
+    const x = plat.x + i * step;
+    if (x > plat.x + plat.w - 8) continue;
+    blitArt(img, x, plat.y - 6, w, h);
+  }
+}
+
+function drawLavaLip(plat) {
+  const h = 11;
+  const step = 42;
+  const left = state.cam.x - 8;
+  const right = state.cam.x + viewW + 8;
+  const start = Math.max(0, Math.floor((left - plat.x) / step));
+  const end = Math.ceil((Math.min(plat.x + plat.w, right) - plat.x) / step);
+  for (let i = start; i <= end; i += 1) {
+    const img = sceneImg(LAVA_LIP[i % LAVA_LIP.length]);
+    if (!artReady(img)) continue;
+    const w = img.naturalWidth * (h / img.naturalHeight);
+    const x = plat.x + i * step;
+    if (x > plat.x + plat.w) continue;
+    blitArt(img, x, plat.y - 4, w, h);
+  }
+}
+
+function drawLavaCracks(plat, drawH) {
+  if (drawH < 48) return;
+  const img = sceneImg(LAVA_CRACK[Math.abs(Math.round(plat.x / 20)) % LAVA_CRACK.length]);
+  if (!artReady(img)) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(plat.x, plat.y, plat.w, drawH);
+  ctx.clip();
+  const h = Math.min(40, drawH - 6);
+  const w = img.naturalWidth * (h / img.naturalHeight);
+  blitArt(img, plat.x + Math.min(plat.w * 0.35, Math.max(4, plat.w - w - 4)), plat.y + 8, w, h);
+  ctx.restore();
+}
+
+function drawCeilingVines(plat) {
+  const count = 2 + (Math.abs(Math.round(plat.x / 30)) % 3);
+  for (let i = 0; i < count; i += 1) {
+    const img = sceneImg(HANG_VINES[(i + Math.round(plat.x)) % HANG_VINES.length]);
+    if (!artReady(img)) continue;
+    const h = 28 + ((i * 19 + Math.round(plat.x)) % 36);
+    const w = img.naturalWidth * (h / img.naturalHeight);
+    const span = Math.max(24, plat.w - 12);
+    const x = plat.x + 6 + ((i * 53 + Math.round(plat.x / 5)) % span);
+    blitArt(img, x, plat.y + plat.h - 6, w, h);
+  }
+}
+
+function drawZonePlatform(plat) {
+  const biome = zoneTheme().biome;
+  const drawH = Math.min(plat.h, 96);
+  if (biome === 'grass') drawGroundTile(plat, sceneImg('ground/grass.png'), drawH);
+  else if (biome === 'mountain') drawGroundTile(plat, sceneImg('ground/stone.png'), drawH);
+  else if (biome === 'tundra') drawIcePlate(plat, drawH);
+  else if (biome === 'volcano') {
+    drawGroundTile(plat, sceneImg('ground/stone.png'), drawH, true);
+    washPlate(plat, drawH, '#3d1c14', 1, 'multiply');
+    drawLavaLip(plat);
+    drawLavaCracks(plat, drawH);
+  } else {
+    drawGroundTile(plat, sceneImg('ground/grass.png'), drawH);
+    washPlate(plat, drawH, '#3a6a32', 1, 'multiply');
+    if (plat.kind === 'ceil') drawCeilingVines(plat);
+  }
 }
 
 function draw() {
@@ -2372,18 +2467,9 @@ function draw() {
   for (const spot of state.level.words) ctx.fillText(theme.word, spot[0], spot[1]);
   ctx.globalAlpha = 1;
 
-  for (const plat of state.level.platforms) {
-    const pal = surfacePalette(plat);
-    const drawH = Math.min(plat.h, 96);
-    const cap = pal.cap || 3;
-    ctx.fillStyle = pal.body;
-    ctx.fillRect(plat.x, plat.y, plat.w, drawH);
-    ctx.fillStyle = pal.top;
-    ctx.fillRect(plat.x, plat.y, plat.w, cap);
-    ctx.fillStyle = pal.mortar;
-    for (let x = plat.x + 8; x < plat.x + plat.w; x += 8) ctx.fillRect(x, plat.y + cap, 1, drawH - cap);
-    drawGroundDress(plat, pal);
-  }
+  drawFloorProps();
+
+  for (const plat of state.level.platforms) drawZonePlatform(plat);
 
   const gate = state.level.gate;
   if (!state.sealOpen) {
@@ -2459,6 +2545,18 @@ function draw() {
       ctx.fill();
       ctx.restore();
       label(gx - 18, enemy.y + enemy.h - h - 8, odd ? 'HEX' : 'SHARD');
+      if ((enemy.windup > 0 || enemy.follow) && enemy.tell) {
+        const dir = enemy.dir || -1;
+        const ink = (enemy.loaded && enemy.loaded.color)
+          || (enemy.follow && enemy.follow.move && enemy.follow.move.color)
+          || (odd ? '#ff9a3c' : '#9aefff');
+        ctx.fillStyle = ink;
+        const n = enemy.tell;
+        for (let i = 0; i < n; i += 1) {
+          const py = gy - ((n - 1) * 6) + i * 12;
+          ctx.fillRect(gx + dir * 28, py, 14, 3);
+        }
+      }
     }
     if (!drawSprite(img, enemy.x + enemy.w / 2, enemy.y + enemy.h + bob, h, flip)) {
       ctx.fillStyle = '#ffc107';
@@ -2840,6 +2938,7 @@ function drawPilot(hero, cx, bottom, face) {
   ctx.save();
   ctx.translate(Math.round(cx), Math.round(bottom + bob));
   if (face < 0) ctx.scale(-1, 1);
+  if (player.crouch) ctx.scale(1, 0.62);
   let kitOn = false;
   if (orami) drawOramiBody();
   else if (suited) kitOn = drawKitBody();
@@ -3102,7 +3201,7 @@ function boot() {
 
   window.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(event.key.toLowerCase()) || event.code === 'Space') {
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key) || event.code === 'Space' || key === 'control') {
       event.preventDefault();
     }
     if (!state) {
@@ -3186,6 +3285,115 @@ function boot() {
   if (qs.get('sim') === 'wear') runWearTest();
   if (qs.get('sim') === 'gale') runGaleTest();
   if (qs.get('sim') === 'kit') runKitTest();
+  if (qs.get('sim') === 'crouch') runCrouchTest();
+  if (qs.get('shot') === 'crouch') {
+    startGame(qs.get('zone') || 'hemi');
+    keys.add('control');
+    state.player.onGround = true;
+    state.player.vy = 0;
+    state.player.y = G - STAND_H;
+    for (let i = 0; i < 8; i += 1) update(1 / 60);
+    draw();
+  }
+}
+
+function runCrouchTest() {
+  startGame('hemi');
+  const player = state.player;
+  player.iframes = 99;
+  player.x = 80;
+  player.y = G - STAND_H;
+  player.vy = 0;
+  player.onGround = true;
+  const feet = G;
+  keys.add('control');
+  update(1 / 60);
+  const ducked = player.crouch && player.h === CROUCH_H && Math.abs(player.y + player.h - feet) < 1.5;
+  const slow = runSpeed() < state.hero.speed * 0.5;
+  keys.delete('control');
+  keys.add('arrowdown');
+  update(1 / 60);
+  const down = player.h === CROUCH_H;
+  keys.delete('arrowdown');
+  keys.add('s');
+  update(1 / 60);
+  const ess = player.h === CROUCH_H;
+  keys.delete('s');
+  input.stickY = 0.8;
+  update(1 / 60);
+  const stick = player.h === CROUCH_H;
+  input.stickY = 0;
+  update(1 / 60);
+  const stood = player.h === STAND_H && !player.crouch && Math.abs(player.y + player.h - feet) < 1.5;
+
+  keys.add('control');
+  update(1 / 60);
+  const crouchedTop = player.y;
+  state.level.platforms.push({
+    id: 'low',
+    x: player.x - 40,
+    y: crouchedTop - (STAND_H - CROUCH_H) + 2,
+    w: 140,
+    h: STAND_H - CROUCH_H - 4,
+    oneWay: false,
+  });
+  keys.delete('control');
+  update(1 / 60);
+  const locked = player.h === CROUCH_H && !solids().some((solid) => aabb(player, solid));
+  state.level.platforms = state.level.platforms.filter((plat) => plat.id !== 'low');
+  keys.delete('control');
+  state.jumpBuffer = 0;
+  update(1 / 60);
+  const released = player.h === STAND_H;
+
+  keys.add('control');
+  player.onGround = true;
+  player.vy = 0;
+  update(1 / 60);
+  input.jumpQueued = true;
+  update(1 / 60);
+  const hopped = player.h === STAND_H && player.vy < 0;
+  keys.delete('control');
+  state.jumpBuffer = 0;
+  player.vy = 0;
+  player.onGround = true;
+  player.y = G - STAND_H;
+  player.h = STAND_H;
+  update(1 / 60);
+
+  keys.add('control');
+  player.onGround = true;
+  player.vy = 0;
+  update(1 / 60);
+  state.level.checks[0] = player.x - 4;
+  state.nextCheck = 0;
+  update(1 / 60);
+  const marked = Math.abs(state.checkpoint.y - (G - STAND_H)) < 1.5;
+  keys.delete('control');
+
+  player.iframes = 0;
+  player.hp = 5;
+  keys.add('control');
+  player.onGround = true;
+  player.vy = 0;
+  player.y = G - CROUCH_H;
+  player.h = CROUCH_H;
+  update(1 / 60);
+  const over = player.y;
+  state.shots = [{ x: player.x + 2, y: over - 8, w: 12, h: 4, vx: 0, vy: 0, life: 2, friendly: false }];
+  update(1 / 60);
+  const missed = player.hp === 5;
+  state.shots = [{ x: player.x + 2, y: player.y + 2, w: 12, h: 6, vx: 0, vy: 0, life: 2, friendly: false }];
+  update(1 / 60);
+  const hit = player.hp === 4;
+  keys.delete('control');
+
+  const ok = ducked && slow && down && ess && stick && stood && locked && released && hopped && marked && missed && hit;
+  state.crouchReport = {
+    ducked, slow, down, ess, stick, stood, locked, released, hopped, marked, missed, hit,
+  };
+  finishSim(ok ? 'crouch-ok' : 'crouch-fail');
+  el.sim.textContent = JSON.stringify({ status: ok ? 'crouch-ok' : 'crouch-fail', ...state.crouchReport });
 }
 
 function runKitTest() {
@@ -3225,9 +3433,14 @@ function runKitTest() {
   state.sealOpen = false;
   state.shots = [];
   const homeX = boss.x;
-  update(1 / 60);
+  const pace = boss.baseSpeed;
+  boss.baseSpeed = 0;
+  boss.speed = 0;
+  for (let i = 0; i < 40; i += 1) update(1 / 60);
   const early = state.shots.filter((shot) => !shot.friendly && !shot.acid).length;
   const stillBehind = boss.x > gateX;
+  boss.baseSpeed = pace;
+  boss.x = homeX;
   boss.hp = Math.max(1, Math.floor(boss.max * 0.4));
   state.player.x = gateX - 200;
   for (let i = 0; i < 50; i += 1) update(1 / 60);
@@ -3341,25 +3554,80 @@ function runWearTest() {
   el.sim.textContent = JSON.stringify(report);
 }
 
-function bossVolleySize(zone) {
+function hitsFeet(shot) {
+  const top = G - 30;
+  return shot.y < G && shot.y + shot.h > top;
+}
+
+function bossPhrase(zone, parity) {
   startGame(zone);
   const boss = state.level.enemies.find((enemy) => enemy.kind === 'boss');
-  state.sealOpen = true;
-  state.player.x = boss.x - 70;
+  boss.parity = parity;
+  boss.phrase = 0;
+  boss.cooldown = 0;
+  boss.windup = 0;
+  boss.follow = null;
+  boss.loaded = null;
+  boss.tell = 0;
+  boss.baseSpeed = 0;
+  boss.chaseSpeed = 0;
+  boss.speed = 0;
+  boss.hopV = 0;
+  boss.hopCd = 99;
+  boss.hopEvery = 99;
+  state.player.x = state.level.gate.x - 48;
   state.player.y = G - 30;
+  state.player.vx = 0;
+  state.player.hp = 5;
   state.player.iframes = 99;
   state.shots = [];
-  boss.cooldown = 0;
-  update(1 / 60);
-  return state.shots.filter((shot) => !shot.friendly).length;
+  const notes = [];
+  const seen = new Set();
+  for (let i = 0; i < 60 * 9 && notes.length < 4; i += 1) {
+    update(1 / 60);
+    for (const shot of state.shots) {
+      if (shot.friendly || seen.has(shot)) continue;
+      seen.add(shot);
+      notes.push({
+        move: shot.bossMove,
+        y: shot.y,
+        h: shot.h,
+        t: Math.round(state.time * 100) / 100,
+        feet: hitsFeet(shot),
+      });
+    }
+  }
+  return notes;
+}
+
+function phraseOk(notes, light, heavy) {
+  if (notes.length < 4) return false;
+  const moves = notes.slice(0, 4).map((note) => note.move).join();
+  if (moves !== [light, heavy, heavy, light].join()) return false;
+  const inner = notes[2].t - notes[1].t;
+  const into = notes[1].t - notes[0].t;
+  const after = notes[3].t - notes[2].t;
+  const highThenLow = notes[1].y < notes[2].y - 8;
+  const lowThenHigh = notes[1].y > notes[2].y + 8;
+  const orderOk = heavy === 'fork' ? highThenLow : lowThenHigh;
+  const dodgeOk = notes[0].feet
+    && (heavy === 'fork' ? !notes[1].feet && notes[2].feet : notes[1].feet && !notes[2].feet);
+  return notes[0].t > 0.2
+    && inner > 0.32
+    && inner < 0.7
+    && into > inner + 0.4
+    && after > into + 0.15
+    && orderOk
+    && dodgeOk;
 }
 
 function runGaleTest() {
-  const riseBolts = bossVolleySize('hemi');
-  const spanBolts = bossVolleySize('wart');
-  const deepBolts = bossVolleySize('cart');
-  const galeBolts = bossVolleySize('gale');
-  const crownBolts = bossVolleySize('crown');
+  const rise = bossPhrase('hemi', 'even');
+  const crown = bossPhrase('crown', 'even');
+  const hex = bossPhrase('hemi', 'odd');
+  const shaped = phraseOk(rise, 'line', 'pair') && phraseOk(crown, 'line', 'pair') && phraseOk(hex, 'jab', 'fork');
+  const quicker = rise.length >= 4 && crown.length >= 4
+    && (crown[1].t - crown[0].t) < (rise[1].t - rise[0].t) - 0.08;
   const flyersOf = (tier) => buildStage(tier).enemies.filter((enemy) => enemy.kind === 'flyer');
   const early = flyersOf(3);
   const galeFlyers = flyersOf(4);
@@ -3387,15 +3655,15 @@ function runGaleTest() {
   const shafts = [1, 2, 3, 4, 5].map((tier) => buildStage(tier).platforms.filter((plat) => /^h\d+$/.test(plat.id)).length);
   const oneHop = HEMIGO.single < SHAFT;
   const report = {
-    status: riseBolts === 1 && spanBolts === 2 && deepBolts === 3 && galeBolts === 4 && crownBolts === 5
+    status: shaped && quicker
       && armed && slantCopy && slantCopy.vx !== 0 && slantCopy.vy > 0 && moved && longer
       && shafts.join() === '2,3,4,5,6' && oneHop
       ? 'pass' : 'fail',
-    riseBolts,
-    spanBolts,
-    deepBolts,
-    galeBolts,
-    crownBolts,
+    shaped,
+    quicker,
+    rise,
+    crown,
+    hex,
     slant: slantCopy,
     moved,
     longer,

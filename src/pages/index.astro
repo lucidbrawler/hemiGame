@@ -16,7 +16,7 @@ export const prerender = true;
       <p class="eyebrow" id="zone-count">Five Hemi stages</p>
       <h1>Pick a map</h1>
       <p class="lede">
-        Pick Hemigo or Orami, then pick a map. Space jumps. E swings, chops, or fires.
+        Pick Hemigo or Orami, then pick a map. Space jumps. Hold Ctrl or Down to crouch. E swings, chops, or fires.
         The mouse wheel cycles weapons you have found. Hold Q to raise a shield.
         F confirms the post at the top. The grass rise has no armor and no spark.
         Its relay is two steps, one hop each. The spark is on the mountain rise.
@@ -51,7 +51,7 @@ export const prerender = true;
         <button type="button" id="start-cart" class="zone-pick cart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Deep</span>
-          <span class="zone-blurb">Jungle canopy, a low ceiling, a wisp, and a wider volley. No new armor here. Gear you already picked up comes with you.</span>
+          <span class="zone-blurb">Jungle canopy, a low ceiling, and a wisp. No new armor here. Gear you already picked up comes with you.</span>
         </button>
         <button type="button" id="start-gale" class="zone-pick gale">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
@@ -61,7 +61,7 @@ export const prerender = true;
         <button type="button" id="start-crown" class="zone-pick crown">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Crown</span>
-          <span class="zone-blurb">Volcanic mountains. The tallest shaft, a blue helm on the ground, and the heaviest volley. Skimmers keep firing on the diagonal.</span>
+          <span class="zone-blurb">Volcanic mountains. The tallest shaft, a blue helm on the ground, and a boss that plays the same two shapes a little faster. Skimmers keep firing on the diagonal.</span>
         </button>
       </div>
       <div class="pilot-card">
@@ -99,10 +99,10 @@ export const prerender = true;
             </figure>
           </div>
         </div>
-        <p class="hero-stat">Space jumps. E attacks. Hold Q to guard. Mouse wheel cycles weapons. F or right-click confirms. I opens armor.</p>
+        <p class="hero-stat">Space jumps. Hold Ctrl or Down to crouch. E attacks. Hold Q to guard. Mouse wheel cycles weapons. F or right-click confirms. I opens armor.</p>
       </div>
       <p class="controls-blurb kb">
-        Desktop: A D or arrows move · Space jump · E attack · hold Q shield · mouse wheel swaps weapons · F uses · I armor. The thumb stick works with a mouse too.
+        Desktop: A D or arrows move · Space jump · Ctrl, S, or Down crouch · E attack · hold Q shield · mouse wheel swaps weapons · F uses · I armor. Push the stick down to crouch.
       </p>
       <p class="controls-blurb touch-only">
         Thumb stick on the left. Guard, Jump, Hit, and Use on the right. Bag is in the top bar.
@@ -117,7 +117,7 @@ export const prerender = true;
         Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is harder. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
         The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
         An even block puts a Shard just behind the gate. An odd block puts a Hex there.
-        The boss fires as you approach the gate and chases when it is hurt or you are down to two marks. Librarians pace, hop, and spit acid.
+        The boss fires as you approach the gate. One shot, then two spaced shots, then a longer rest. It chases when it is hurt or you are down to two marks. Librarians pace, hop, and spit acid.
         The page score follows that same Hemi block.
         The chip stays on screen and stays read-only. Nothing here signs or spends.
       </p>
@@ -152,7 +152,7 @@ export const prerender = true;
           <button type="button" id="btn-hit" class="pad pad-hit">Hit</button>
           <button type="button" id="btn-jump" class="pad pad-jump">Jump</button>
         </div>
-        <p class="kb frame-hint">Space jump · E hit · hold Q shield · wheel swaps · F uses · I armor</p>
+        <p class="kb frame-hint">Space jump · Ctrl or Down crouch · E hit · hold Q shield · wheel swaps · F uses · I armor</p>
       </div>
     </div>
     <div id="bag" class="bag" hidden>
