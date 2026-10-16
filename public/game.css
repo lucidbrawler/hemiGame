@@ -159,6 +159,14 @@ h1 {
   text-align: center;
 }
 
+.armory.is-orami {
+  justify-content: flex-start;
+}
+
+.armory.is-orami figure {
+  flex: 0 0 132px;
+}
+
 .armory img {
   height: 72px;
   width: auto;

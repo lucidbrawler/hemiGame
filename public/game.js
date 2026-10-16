@@ -3,21 +3,24 @@
  * Five Hemi stages: grass, mountains, jungle, winter tundra, volcanic peaks.
  * Rise has no armor and no spark. Its relay is two steps, one hop each.
  * Span has the spark and the chest plates. Gale and Crown have the helms.
- * The ground changes each rise: hops, pads, a crouch, sliding bridges, then a high step.
- * Each one is longer and harder. Gale and Crown skimmers fire down on a slant.
+ * The ground changes each rise: hops, pads, a low roof, sliding bridges, then a high step.
+ * The roof sits on flat ground, with room to stand before the next jump.
+ * Later rises leave fights spaced apart. Gale and Crown skimmers fire down on a slant.
  * Space jumps. Hold Ctrl, S, or Down to crouch. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
  * F confirms the relay. I pauses on the armor bag. The chip is the Hemi mainnet block.
  * Health is five Hemi marks. Gold armor hits harder. Blue armor is faster.
  * Pick Hemigo or Orami, then a map. Spark, shield, and armor carry between them.
- * Orami stays locked until all five rises are clear. He leaves swords, axes, and rifles
- * on the ground and fights with a fire slash and fireballs.
+ * Orami stays locked until all five rises are clear. He leaves the sword.
+ * The fire slash is his. A fireball sits where the axe and the rifle were.
+ * Jumping through a foe burns. He walks until three seconds of forward movement, then lunges.
  * The Hemi block you start on plants one glowing page, its score, and the boss at the door.
  * An even block calls a Shard. An odd block calls a Hex.
  * Each boss alternates one shot and a two-note shape, then takes a longer rest.
  * Later rises play that same phrase a little faster.
  * Zone skies, set dressing, and ground use the painted segment art.
- * Suited Hemigo plays the side-view action sheet: idle, walk, run, and jump
- * follow his movement. Gold and blue are the plate. A different helm tints the head.
+ * With no plate, Hemigo plays the side-view action sheet: idle, walk, run, and jump.
+ * A chest plate brings back the armor suit strips. With no helm, that suit
+ * keeps his bare head. A helm uses the suit's helmet.
  */
 const GRAV = 1700;
 const VIEW_W = 480;
@@ -56,12 +59,16 @@ const HERO_KEY = 'relay-zone-hero';
 const WEAR_KEY = 'relay-zone-wear';
 const GEAR_KEY = 'relay-zone-gear';
 const GEAR_IDS = ['blade', 'axe', 'gun', 'spark', 'shield', 'goldhelm', 'bluehelm', 'goldplate', 'blueplate'];
-const ORAMI_CELL_W = 200;
-const ORAMI_CELL_H = 150;
-const ORAMI_DRAW_H = 96;
-const ORAMI_BODY_X = 78;
-const ORAMI_FEET_Y = 136;
+const ORAMI_CELL_W = 300;
+const ORAMI_CELL_H = 280;
+const ORAMI_DRAW_H = 86;
+const ORAMI_BODY_X = 160;
+const ORAMI_FEET_Y = 268;
+const ORAMI_RUN_X = 72;
+const ORAMI_DOWN_X = 150;
+const ORAMI_RUN_TIME = 3;
 const ORAMI_ARMS = ['slash', 'bolt'];
+const ORAMI_KEY = 'relay-zone-orami';
 const KIT_WALK_N = 8;
 const KIT_IDLE_HAND = { x: 11, y: -24 };
 const KIT_JUMP_HAND = { x: 12, y: -34 };
@@ -90,6 +97,7 @@ const SUIT_RUN_HAND = [
 ];
 const SUIT_JUMP_HAND = [{ x: 124, y: 101 }];
 let suitHand = null;
+let openCollar = false;
 let pickedHero = 'hemigo';
 
 function heroById(id) {
@@ -109,7 +117,7 @@ function refreshHeroLock() {
   const role = node.querySelector('.runner-role');
   if (role) {
     role.textContent = open
-      ? 'Fire slash and fireballs. He leaves swords, axes, and rifles on the ground.'
+      ? 'Fire slash from the start. The fireball is on the ground. A jump through a foe burns.'
       : 'Locked until all five rises are clear.';
   }
   const img = node.querySelector('img');
@@ -144,6 +152,7 @@ function setPickedHero(id, persist) {
     node.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   refreshHeroLock();
+  paintArmory();
 }
 
 const ITEM_META = [
@@ -255,12 +264,19 @@ loadImage(ORAMI.body);
 for (const name of ['idle', 'walk', 'run', 'jump', 'slash', 'bolt', 'hurt', 'down', 'fireball', 'icon-slash', 'icon-bolt']) {
   loadImage(`assets/orami/${name}.png`);
 }
-for (const look of ['gold', 'blue', 'gold-blue', 'blue-gold']) {
-  loadImage(`assets/hemigo/${look}-idle.png`);
-  loadImage(`assets/hemigo/${look}-walk.png`);
-  loadImage(`assets/hemigo/${look}-run.png`);
-  loadImage(`assets/hemigo/${look}-jump.png`);
+for (const name of ['flame-1', 'flame-2', 'flame-3', 'flame-6', 'flame-8', 'flame-beam', 'star-1', 'star-3', 'star-5']) {
+  loadImage(`assets/orami/fx/${name}.png`);
 }
+for (const name of ['idle', 'walk', 'run', 'jump']) {
+  loadImage(`assets/hemigo/bare-${name}.png`);
+}
+for (const look of ['gold', 'blue', 'gold-blue', 'blue-gold']) {
+  loadImage(`assets/kits/${look}-idle.png`);
+  loadImage(`assets/kits/${look}-walk.png`);
+  loadImage(`assets/kits/${look}-jump.png`);
+}
+loadImage('assets/kits/gold-open.png');
+loadImage('assets/kits/blue-open.png');
 loadImage('assets/flyer/glide.png');
 loadImage('assets/flyer/flap.png');
 for (const item of ALL_META) loadImage(item.src);
@@ -319,10 +335,10 @@ function librarian(id, x, minX, maxX, hp, speed, hopCd) {
     kind: 'librarian',
     name: 'Librarian',
     x,
-    y: G - 32,
-    baseY: G - 32,
-    w: 30,
-    h: 32,
+    y: G - 40,
+    baseY: G - 40,
+    w: 38,
+    h: 40,
     hp,
     max: hp,
     minX,
@@ -330,7 +346,7 @@ function librarian(id, x, minX, maxX, hp, speed, hopCd) {
     dir: 1,
     speed,
     sprite: 'assets/js1/14.png',
-    drawH: 54,
+    drawH: 68,
     plated: false,
     hopCd: hopCd == null ? 1.65 + (Math.abs(Math.round(x)) % 9) * 0.08 : hopCd,
     hopEvery: 1.85 + (Math.abs(Math.round(x)) % 5) * 0.17,
@@ -417,13 +433,14 @@ function buildStage(tier) {
   };
   const tunnel = (id, w) => {
     const at = cursor;
+    const roofTop = G - 320;
     platforms.push({ id: `${id}-floor`, x: at, y: G, w, h: 180, oneWay: true, kind: 'hemi' });
     platforms.push({
       id,
       x: at + 36,
-      y: G - 44,
+      y: roofTop,
       w: w - 52,
-      h: 18,
+      h: (G - 26) - roofTop,
       oneWay: false,
       kind: 'ceil',
     });
@@ -473,66 +490,67 @@ function buildStage(tier) {
     hole(42);
     const hall = ground('hall', 760);
     marks.sword = hall + 70;
-    marks.plate = hall + 280;
+    marks.plate = hall + 300;
     marks.axe = hall + 480;
     marks.spark = hall + 660;
-    marks.skim.push(chest + 180, hall + 160, hall + 520);
-    marks.lib = [[hall + 180, 70], [hall + 400, 70]];
-    marks.ember = [chest + 80, hall + 360];
+    marks.skim.push(260, hall + 680);
+    marks.lib = [[hall + 40, 40], [hall + 520, 50]];
+    marks.ember = [chest + 90];
   } else if (tier === 3) {
-    hole(54);
-    const mid = ground('mid', 220);
-    hole(24);
-    const slot = tunnel('ceil', 210);
-    hole(56);
-    deck('pad-a', 48, 160);
-    hole(46);
-    const hall = ground('hall', 860);
-    marks.sword = mid + 70;
-    marks.plate = hall + 180;
-    marks.axe = hall + 400;
-    marks.spark = hall + 720;
-    marks.skim.push(mid + 40, slot + 80, hall + 80, hall + 360, hall + 680);
-    marks.lib = [[hall + 160, 60], [hall + 340, 60], [hall + 560, 70]];
-    marks.ember = [mid + 140, hall + 260, hall + 600];
+    hole(52);
+    deck('pad-a', 46, 156);
+    hole(44);
+    const approach = ground('approach', 200);
+    const slot = tunnel('ceil', 240);
+    const hall = ground('hall', 1800);
+    marks.low = slot - 28;
+    marks.sword = approach + 80;
+    marks.plate = hall + 1660;
+    marks.axe = hall + 80;
+    marks.spark = hall + 1080;
+    marks.skim.push(270, hall + 1280);
+    marks.lib = [[hall + 860, 50]];
+    marks.ember = [hall + 420];
   } else if (tier === 4) {
     ferry('glide-a', 130, 180, 40, 0, 0.25);
-    const far = ground('far', 250);
-    tunnel('ceil', 190);
-    hole(36);
-    ferry('glide-b', 120, 170, 36, 18, 1.5);
-    const hall = ground('hall', 980);
-    marks.sword = far + 80;
-    marks.helm = far + 160;
-    marks.plate = hall + 200;
-    marks.axe = hall + 460;
-    marks.spark = hall + 820;
-    marks.skim.push(far + 40, far + 160, hall + 80, hall + 300, hall + 560, hall + 800);
-    marks.lib = [[hall + 150, 60], [hall + 360, 70], [hall + 620, 70]];
-    marks.ember = [far + 40, hall + 180, hall + 480, hall + 740];
+    const far = ground('far', 280);
+    ferry('glide-b', 150, 170, 50, 0, 1.4);
+    const lead = ground('lead', 220);
+    const slot = tunnel('ceil', 240);
+    const hall = ground('hall', 2200);
+    marks.low = slot - 28;
+    marks.sword = lead + 80;
+    marks.helm = far + 100;
+    marks.plate = hall + 2060;
+    marks.axe = hall + 200;
+    marks.spark = hall + 1100;
+    marks.skim.push(hall + 860, hall + 1680);
+    marks.lib = [[hall + 420, 50]];
+    marks.ember = [hall + 1280];
   } else {
     hole(40);
     deck('pad-a', 34, 140);
     hole(36);
     deck('pad-b', 50, 150);
-    hole(32);
-    const before = ground('before', 230);
-    tunnel('ceil', 180);
+    hole(34);
+    const before = ground('before', 220);
     ferry('glide-a', 140, 190, 44, 0, 0.35);
-    const sparkDeck = ground('sparkdeck', 240);
-    marks.spark = sparkDeck + 90;
-    hole(60);
+    const sparkDeck = ground('sparkdeck', 260);
+    marks.spark = sparkDeck + 80;
+    const slot = tunnel('ceil', 220);
+    ground('stand', 400);
     deck('crown-step', SHAFT, 200);
     hole(24);
     ferry('glide-b', 150, 180, 56, 40, 1.7);
-    const hall = ground('hall', 900);
-    marks.sword = before + 70;
+    const hall = ground('hall', 2400);
+    marks.low = slot - 28;
+    marks.sword = before + 60;
     marks.helm = before + 150;
-    marks.plate = hall + 180;
-    marks.axe = hall + 420;
-    marks.skim.push(before + 40, sparkDeck + 40, hall + 60, hall + 220, hall + 420, hall + 620, hall + 800);
-    marks.lib = [[hall + 140, 60], [hall + 340, 60], [hall + 560, 70], [hall + 760, 50]];
-    marks.ember = [before + 40, sparkDeck + 150, hall + 160, hall + 460, hall + 720];
+    marks.plate = hall + 2160;
+    marks.axe = hall + 720;
+    marks.skim.push(hall + 150, hall + 980, hall + 1760);
+    marks.lib = [[hall + 1400, 50]];
+    marks.ember = [hall + 560];
   }
 
   const climb = stairs(tier + 1, tier === 1 ? 52 : SHAFT);
@@ -617,35 +635,15 @@ function buildStage(tier) {
       cooldown: 1.45,
     });
   }
-  if (tier >= 5) {
-    enemies.push({
-      id: 'wisp-b',
-      kind: 'turret',
-      name: 'Wisp',
-      x: gateX - 680,
-      y: G - 36,
-      baseY: G - 36,
-      w: 40,
-      h: 28,
-      hp: 5,
-      max: 5,
-      dir: -1,
-      sprite: 'assets/wisp/00.png',
-      artLeft: true,
-      drawH: 58,
-      plated: false,
-      cooldown: 1.05,
-    });
-  }
 
   const stageName = names[tier];
   const openLine = [
     '',
     'Two short hops, then two low steps. No armor and no spark. Hold Space. One hop clears a step. Hold Ctrl or Down to crouch. F confirms.',
     'Hop the pads. The spark is on the hall before the shaft. One hop will not clear that shaft.',
-    'Crouch through the low slot. On this rise, acid that hits the floor stays for a few seconds.',
-    'Step onto the bridge when it meets the lip. It carries you. Crouch the slot after it.',
-    'Pads, a slide, then a high step. Pick up the spark before that step. The shaft above it is the same kind of climb.',
+    'Jump the pad, then crouch the low roof. Flat ground follows it. Acid that hits the floor stays for a few seconds.',
+    'Ride both bridges first. The low roof is after them, on flat ground. Hold Ctrl or Down.',
+    'Pads, a bridge, then the spark. Crouch the low roof, stand up, then take the high step.',
   ][tier];
   const signs = [
     { x: 78, text: stageName, once: openLine },
@@ -701,6 +699,13 @@ function buildStage(tier) {
       x: firstGlide.homeX + 40,
       text: 'Drift',
       once: 'This span slides. Step on when it reaches you. It carries you across.',
+    });
+  }
+  if (marks.low) {
+    signs.push({
+      x: marks.low,
+      text: 'Low',
+      once: 'Low roof. Hold Ctrl or Down and walk through. It is not a step.',
     });
   }
 
@@ -1018,13 +1023,15 @@ function startGame(zoneId) {
   const zone = ZONE_TIER[zoneId] ? zoneId : 'hemi';
   const hero = resolveHero();
   const level = buildStage(ZONE_TIER[zone]);
+  const oramiKit = hero.id === 'orami' ? readOrami() : { bolt: false };
+  if (hero.id === 'orami') dressOrami(level);
   const wear = readWear();
   const gear = readGear();
   const owned = new Set(gear.owned);
   if (wear.helm) owned.add(wear.helm);
   if (wear.chest) owned.add(wear.chest);
   for (const item of level.items) {
-    if (owned.has(item.id)) item.got = true;
+    if (owned.has(item.id) || (item.id === 'bolt' && oramiKit.bolt)) item.got = true;
   }
   const stamp = stampRun();
   plantPage(level, stamp);
@@ -1053,12 +1060,14 @@ function startGame(zoneId) {
       attackKind: '',
       attackHit: false,
       gait: 0,
+      runHold: 0,
+      runDir: 0,
       downT: 0,
       landT: 0,
       boltSent: false,
     },
     level,
-    weapon: hero.id === 'orami' ? 'slash' : weaponFrom(owned, gear.weapon),
+    weapon: hero.id === 'orami' ? (oramiKit.bolt ? 'bolt' : 'slash') : weaponFrom(owned, gear.weapon),
     maxHp: 5,
     armor: { helm: wear.helm, chest: wear.chest },
     inv: {
@@ -1073,6 +1082,7 @@ function startGame(zoneId) {
       bluehelm: owned.has('bluehelm'),
       blueplate: owned.has('blueplate'),
       shield: owned.has('shield'),
+      bolt: !!oramiKit.bolt,
     },
     shieldPing: 0,
     sealOpen: false,
@@ -1119,7 +1129,7 @@ function startGame(zoneId) {
     : 'Hemi is quiet, so this run is even';
   const bossName = even ? 'Shard' : 'Hex';
   const gearLine = hero.id === 'orami'
-    ? ' Fire slash and fireballs are already his.'
+    ? (oramiKit.bolt ? ' Fire slash and the fireball are already his.' : ' Fire slash is his. The fireball is on the ground.')
     : owned.size
       ? ' What you picked up is still with you.'
       : ` The sword is ahead on ${level.name}.`;
@@ -1272,11 +1282,67 @@ function playingOrami() {
   return state?.hero?.id === 'orami';
 }
 
+function readOrami() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(ORAMI_KEY) || '{}');
+    return { bolt: !!raw.bolt };
+  } catch {
+    return { bolt: false };
+  }
+}
+
+function writeOrami(kit) {
+  try { localStorage.setItem(ORAMI_KEY, JSON.stringify({ bolt: !!kit.bolt })); } catch { /* this visit still keeps it */ }
+}
+
+function paintArmory() {
+  const orami = pickedHero === 'orami';
+  document.querySelector('.pilot-card .armory')?.classList.toggle('is-orami', orami);
+  const rows = [
+    ['arm-sword', orami ? '/assets/orami/icon-slash.png' : '/assets/gold/18.png', orami ? 'Fire slash' : 'Sword'],
+    ['arm-axe', orami ? '/assets/orami/fireball.png' : '/assets/weapons/axe.png', orami ? 'Fireball' : 'Axe'],
+    ['arm-rifle', '/assets/weapons/rifle.png', 'Rifle'],
+  ];
+  for (const [id, src, label] of rows) {
+    const node = document.getElementById(id);
+    if (!node) continue;
+    node.hidden = orami && id === 'arm-rifle';
+    const img = node.querySelector('img');
+    const cap = node.querySelector('figcaption');
+    if (img) img.src = src;
+    if (cap) cap.textContent = label;
+  }
+  const stat = document.querySelector('.hero-stat');
+  if (stat) {
+    stat.textContent = orami
+      ? 'Space jumps, and the drop burns. Hold Ctrl or Down to crouch. E cuts a fire slash or shoots the fireball. Hold Q to guard. The wheel swaps those two. F confirms. I opens armor.'
+      : 'Space jumps. Hold Ctrl or Down to crouch. E attacks. Hold Q to guard. Mouse wheel cycles weapons. F or right-click confirms. I opens armor.';
+  }
+}
+
+function dressOrami(level) {
+  const axe = level.items.find((item) => item.id === 'axe');
+  level.items = level.items.filter((item) => item.id !== 'axe' && item.id !== 'gun');
+  if (axe) level.items.push({ id: 'bolt', x: axe.x, y: G - 30, got: false });
+  level.signs = level.signs.filter((sign) => sign.text !== 'Rifle');
+  for (const sign of level.signs) {
+    if (sign.text === 'Axe') {
+      sign.text = 'Fireball';
+      sign.once = 'Fireball. Pick it up. E shoots. The wheel swaps back to the fire slash.';
+    }
+    if (sign.text === 'Sword') sign.once = 'Orami leaves the sword. E cuts a fire slash.';
+  }
+}
+
+function itemMeta(id) {
+  if (id === 'bolt') return { id: 'bolt', name: 'Fireball', src: 'assets/orami/fireball.png', arm: 'bolt' };
+  return ALL_META.find((entry) => entry.id === id);
+}
+
 function signOnce(sign) {
   if (!playingOrami()) return sign.once;
-  if (sign.text === 'Sword' || sign.text === 'Axe' || sign.text === 'Rifle') {
-    return 'Orami leaves weapons where they lie. E cuts a fire slash. The wheel swaps to a fireball.';
-  }
+  if (sign.text === 'Sword') return 'Orami leaves the sword. E cuts a fire slash.';
+  if (sign.text === 'Fireball') return sign.once;
   if (sign.text === 'Helm' && state.level?.tier === 4) {
     return 'Gold helm. It adds one damage to the fire slash and the fireball. Press I to look at it. The rise pauses.';
   }
@@ -1289,6 +1355,7 @@ function goalLine() {
   let line = 'The gate is open. Walk through the door';
   if (!playingOrami() && !state.inv.blade) line = 'Find the sword';
   else if ((state.level.tier || 1) > 1 && !state.inv.spark) line = 'Find the spark. One hop will not clear the shaft';
+  else if (playingOrami() && !state.inv.bolt) line = 'Find the fireball';
   else if (!state.powered) line = state.level.tier === 1
     ? 'Climb the steps and confirm the relay'
     : 'Climb the shaft and confirm the relay';
@@ -1382,7 +1449,7 @@ function renderHud() {
   const slots = playingOrami()
     ? [
       { id: 'slash', name: 'Fire slash', src: 'assets/orami/icon-slash.png', arm: 'slash', carried: true },
-      { id: 'bolt', name: 'Fireball', src: 'assets/orami/icon-bolt.png', arm: 'bolt', carried: true },
+      { id: 'bolt', name: 'Fireball', src: 'assets/orami/icon-bolt.png', arm: 'bolt', carried: !!inv.bolt },
       ...ITEM_META.filter((item) => item.id === 'spark' || item.id === 'shield'),
     ]
     : ITEM_META;
@@ -1436,8 +1503,8 @@ function renderBag() {
     el.bagPilot.src = state.hero?.id === 'orami'
       ? 'assets/orami/portrait.png'
       : look
-        ? `assets/hemigo/${look}-idle.png`
-        : 'assets/pilot.png';
+        ? (state.armor.helm ? `assets/kits/${look}-idle.png` : `assets/kits/${look}-open.png`)
+        : 'assets/hemigo/bare-idle.png';
     el.bagPilot.alt = who;
   }
   const wornStats = [helm?.stat, chest?.stat].filter(Boolean);
@@ -1631,6 +1698,33 @@ function pingShield() {
   state.shake = 0.05;
 }
 
+function scorchJump() {
+  if (!playingOrami()) return;
+  const player = state.player;
+  // The leap, the high kick, and the clean glide stay cool. The fire kicks burn.
+  const clip = oramiClip();
+  const burning = clip.name === 'jump' && clip.frame >= 3;
+  if (!burning) {
+    if (player.onGround && player.landT <= 0) player.diveHit = null;
+    return;
+  }
+  if (!player.diveHit) player.diveHit = new Set();
+  const dir = player.face < 0 ? -1 : 1;
+  const box = {
+    x: player.x + (dir < 0 ? -16 : 0),
+    y: player.y - 4,
+    w: player.w + 16,
+    h: player.h + 12,
+  };
+  for (const enemy of state.level.enemies) {
+    if (enemy.hp <= 0 || player.diveHit.has(enemy.id)) continue;
+    if (!aabb(box, enemy)) continue;
+    player.diveHit.add(enemy.id);
+    state.shake = 0.06;
+    markHit(enemy, boltPower());
+  }
+}
+
 function boltPower() {
   let power = 2;
   if (state.armor.helm === 'goldhelm') power += 1;
@@ -1642,9 +1736,12 @@ function spawnFireball() {
   const player = state.player;
   const dir = player.face < 0 ? -1 : 1;
   const size = 16;
+  // The cast grows in the open palm. The shot leaves from that hand.
+  const handForward = 26;
+  const handUp = player.crouch ? 20 : 32;
   state.shots.push({
-    x: player.x + player.w / 2 + dir * 22,
-    y: player.y + 2,
+    x: player.x + player.w / 2 + dir * handForward - size / 2,
+    y: player.y + player.h - handUp - size / 2,
     w: size,
     h: size,
     vx: dir * 300,
@@ -1660,7 +1757,7 @@ function beginAttack() {
   const player = state.player;
   if (player.attackCd > 0 || shielding() || player.downT > 0) return;
   if (playingOrami()) {
-    const arm = state.weapon === 'bolt' ? 'bolt' : 'slash';
+    const arm = state.weapon === 'bolt' && state.inv.bolt ? 'bolt' : 'slash';
     const dur = arm === 'bolt' ? 0.4 : 0.42;
     player.attackCd = cool(arm === 'bolt' ? 0.48 : 0.52);
     player.attackT = dur;
@@ -1740,6 +1837,15 @@ function respawn(why) {
 function grant(id) {
   if (state.inv[id]) return;
   state.inv[id] = true;
+  if (id === 'bolt') {
+    state.weapon = 'bolt';
+    writeOrami({ bolt: true });
+    writeGear();
+    renderHud();
+    addScore(160, state.player.x, state.player.y);
+    toast('Fireball in hand. E shoots. The wheel swaps back to the fire slash.');
+    return;
+  }
   const meta = ALL_META.find((item) => item.id === id);
   if (meta?.arm) state.weapon = meta.arm;
   if (meta?.slot && !state.armor[meta.slot]) {
@@ -1767,6 +1873,10 @@ function equipOwned(arm) {
   if (!state || state.mode !== 'play') return;
   if (playingOrami()) {
     if (arm !== 'slash' && arm !== 'bolt') return;
+    if (arm === 'bolt' && !state.inv.bolt) {
+      toast('The fireball is still on the ground.');
+      return;
+    }
     state.weapon = arm;
     renderHud();
     toast(arm === 'bolt' ? 'Fireball ready. E shoots.' : 'Fire slash ready. E cuts.');
@@ -1787,8 +1897,9 @@ function equipOwned(arm) {
 function cycleWeapon(dir) {
   if (!state || state.mode !== 'play') return;
   if (playingOrami()) {
-    const idx = state.weapon === 'bolt' ? 1 : 0;
-    const next = ORAMI_ARMS[(idx + (dir || 1) + ORAMI_ARMS.length) % ORAMI_ARMS.length];
+    const arms = state.inv.bolt ? ORAMI_ARMS : ['slash'];
+    const idx = Math.max(0, arms.indexOf(state.weapon));
+    const next = arms[(idx + (dir || 1) + arms.length) % arms.length];
     if (next !== state.weapon) equipOwned(next);
     return;
   }
@@ -1988,13 +2099,13 @@ function spitAcid(enemy, player, dt) {
   if (Math.abs(dy) > 64 || Math.abs(dx) > 168 || Math.abs(dx) < 28 || enemy.shotCd > 0) return;
   const dir = dx < 0 ? -1 : 1;
   enemy.dir = dir;
-  enemy.shotCd = 1.65;
+  enemy.shotCd = 1.15;
   state.shots.push({
-    x: origin + dir * 12,
-    y: enemy.y + 8,
-    w: 7,
-    h: 7,
-    vx: dir * 112,
+    x: origin + dir * 14,
+    y: enemy.y + 16,
+    w: 11,
+    h: 11,
+    vx: dir * 124,
     vy: -78,
     life: 1.35,
     color: '#b6ff3a',
@@ -2062,6 +2173,17 @@ function update(dt) {
   if (player.onGround && Math.abs(player.vx) > 12) {
     player.gait = (player.gait || 0) + Math.abs(player.vx) * dt / 52;
   }
+  if (playingOrami()) {
+    const dir = Math.sign(player.vx);
+    const moving = Math.abs(player.vx) > 12 && player.downT <= 0;
+    if (moving && !player.crouch && (!player.runDir || player.runDir === dir)) {
+      player.runDir = dir;
+      player.runHold = Math.min(ORAMI_RUN_TIME + 0.4, (player.runHold || 0) + dt);
+    } else if (!(player.crouch && moving && dir === player.runDir)) {
+      player.runHold = 0;
+      player.runDir = 0;
+    }
+  }
 
   if (input.jumpQueued) {
     requestJump();
@@ -2078,6 +2200,8 @@ function update(dt) {
     player.airtime = 0;
     player.airJumps = state.inv.spark ? 1 : 0;
     player.releaseJump = false;
+    player.landT = 0;
+    player.diveHit = new Set();
     state.jumpBuffer = 0;
     state.riseOrigin = player.y + player.h;
     state.peak = 0;
@@ -2085,6 +2209,8 @@ function update(dt) {
     player.vy = -state.hero.jumpV;
     player.airJumps -= 1;
     player.releaseJump = false;
+    player.landT = 0;
+    player.diveHit = new Set();
     state.jumpBuffer = 0;
     state.didDouble = true;
   }
@@ -2110,7 +2236,7 @@ function update(dt) {
   if (player.landT > 0) player.landT = Math.max(0, player.landT - dt);
   if (player.attackKind === 'bolt' && !player.boltSent && player.attackDur) {
     const cast = 1 - player.attackT / player.attackDur;
-    if (cast >= 0.72) {
+    if (cast >= 0.76) {
       player.boltSent = true;
       spawnFireball();
     }
@@ -2178,6 +2304,7 @@ function update(dt) {
   } else if (wasGround && player.vy > 0) {
     player.coyote = 0.12;
   }
+  if (wasGround && !player.onGround) player.diveHit = new Set();
   if (!player.onGround) player.coyote = Math.max(0, (player.coyote || 0) - dt);
   if (player.y < 80) {
     player.y = 80;
@@ -2361,9 +2488,12 @@ function update(dt) {
   state.shots = state.shots.filter((shot) => shot.life > 0 && shot.x > -40 && shot.x < shotFar && shot.y > -160 && shot.y < G + 80);
   soakPuddles(dt);
 
+  scorchJump();
+
   for (const enemy of state.level.enemies) {
     if (enemy.hp <= 0 || enemy.kind === 'turret') continue;
     if (player.attackT > 0) continue;
+    if (player.diveHit && player.diveHit.has(enemy.id)) continue;
     if (!aabb(player, enemy)) continue;
     const from = enemy.x + enemy.w / 2;
     if (shielding() && inFront(from)) pingShield();
@@ -2380,7 +2510,7 @@ function update(dt) {
         if (!state.skipped[item.id]) {
           state.skipped[item.id] = true;
           const name = item.id === 'blade' ? 'sword' : item.id === 'axe' ? 'axe' : 'rifle';
-          toast(`Orami leaves the ${name}. E cuts a fire slash. The wheel swaps to a fireball.`);
+          toast(`Orami leaves the ${name}. E cuts a fire slash.`);
         }
         continue;
       }
@@ -2817,6 +2947,10 @@ function drawFloorProps() {
     if (x < 30 || x > exitX + 120) continue;
     if (x < left - 40 || x > right + 40) continue;
     if (Math.abs(x - gate) < 100 || Math.abs(x - exitX) < 80) continue;
+    const underRoof = state.level.platforms.some((plat) => (
+      plat.kind === 'ceil' && x > plat.x - 24 && x < plat.x + plat.w + 24
+    ));
+    if (underRoof) continue;
     const img = sceneImg(files[Math.abs(i) % files.length]);
     if (!artReady(img)) continue;
     const h = height + (Math.abs(i * 7) % 4) * 8;
@@ -2931,16 +3065,59 @@ function drawLavaCracks(plat, drawH) {
 }
 
 function drawCeilingVines(plat) {
-  const count = 2 + (Math.abs(Math.round(plat.x / 30)) % 3);
+  const count = 2 + (Math.abs(Math.round(plat.x / 30)) % 2);
   for (let i = 0; i < count; i += 1) {
     const img = sceneImg(HANG_VINES[(i + Math.round(plat.x)) % HANG_VINES.length]);
     if (!artReady(img)) continue;
-    const h = 28 + ((i * 19 + Math.round(plat.x)) % 36);
+    const h = 10 + ((i * 5) % 6);
     const w = img.naturalWidth * (h / img.naturalHeight);
-    const span = Math.max(24, plat.w - 12);
-    const x = plat.x + 6 + ((i * 53 + Math.round(plat.x / 5)) % span);
-    blitArt(img, x, plat.y + plat.h - 6, w, h);
+    const span = Math.max(24, plat.w - 16);
+    const x = plat.x + 8 + ((i * 53 + Math.round(plat.x / 5)) % span);
+    blitArt(img, x, plat.y + plat.h - 2, w, h);
   }
+}
+
+function drawLowRoof(plat) {
+  const biome = zoneTheme().biome;
+  const skin = {
+    grass: ['#2a2118', '#4a3828', '#c46a32'],
+    mountain: ['#1c242e', '#3a4654', '#b7c3d0'],
+    jungle: ['#142010', '#2c4020', '#8aaa44'],
+    tundra: ['#1a3040', '#3a5870', '#d7f1ff'],
+    volcano: ['#1a0e0c', '#3a1814', '#ff6a2a'],
+  }[biome] || ['#2a2118', '#4a3828', '#c46a32'];
+  const [, beam, mark] = skin;
+  const lip = plat.y + plat.h;
+  const tile = biome === 'grass' || biome === 'jungle'
+    ? sceneImg('ground/grass.png')
+    : sceneImg('ground/stone.png');
+  drawGroundTile(plat, tile, plat.h, true);
+  const wash = {
+    grass: '#2a2016',
+    mountain: '#243040',
+    jungle: '#0c180c',
+    tundra: '#163044',
+    volcano: '#280e0c',
+  }[biome] || '#2a2016';
+  washPlate(plat, plat.h, wash, 0.62, 'multiply');
+  ctx.fillStyle = beam;
+  ctx.fillRect(plat.x, Math.min(plat.y, state.cam.y - 24), 3, lip - Math.min(plat.y, state.cam.y - 24));
+  ctx.fillRect(plat.x + plat.w - 3, Math.min(plat.y, state.cam.y - 24), 3, lip - Math.min(plat.y, state.cam.y - 24));
+  ctx.fillStyle = mark;
+  ctx.fillRect(plat.x + 3, lip - 3, plat.w - 6, 3);
+  const span = plat.w - 16;
+  const ticks = Math.max(3, Math.floor(span / 28));
+  const step = span / ticks;
+  for (let i = 0; i < ticks; i += 1) {
+    const x = plat.x + 8 + i * step;
+    const drop = 4 + ((i + Math.round(plat.x / 9)) % 3);
+    ctx.beginPath();
+    ctx.moveTo(x, lip - 1);
+    ctx.lineTo(x + 4, lip - 1);
+    ctx.lineTo(x + 2, lip + drop);
+    ctx.fill();
+  }
+  if (biome === 'jungle') drawCeilingVines(plat);
 }
 
 function drawGlideDeck(plat) {
@@ -2969,6 +3146,10 @@ function drawZonePlatform(plat) {
     drawGlideDeck(plat);
     return;
   }
+  if (plat.kind === 'ceil') {
+    drawLowRoof(plat);
+    return;
+  }
   const biome = zoneTheme().biome;
   const drawH = Math.min(plat.h, 96);
   if (biome === 'grass') drawGroundTile(plat, sceneImg('ground/grass.png'), drawH);
@@ -2982,7 +3163,6 @@ function drawZonePlatform(plat) {
   } else {
     drawGroundTile(plat, sceneImg('ground/grass.png'), drawH);
     washPlate(plat, drawH, '#3a6a32', 1, 'multiply');
-    if (plat.kind === 'ceil') drawCeilingVines(plat);
   }
 }
 
@@ -3053,7 +3233,7 @@ function draw() {
   const bob = Math.sin(state.time * 3) * 3;
   for (const item of state.level.items) {
     if (item.got) continue;
-    const meta = ALL_META.find((entry) => entry.id === item.id);
+    const meta = itemMeta(item.id);
     const img = images[meta.src];
     if (!drawSprite(img, item.x, item.y + bob, 30, false)) {
       ctx.fillStyle = '#fff';
@@ -3140,13 +3320,14 @@ function draw() {
         ctx.fill();
       }
     } else if (shot.acid) {
+      const r = Math.max(5, Math.round((shot.w || 10) * 0.55));
       ctx.fillStyle = '#d6ff6a';
       ctx.beginPath();
-      ctx.arc(shot.x + 3, shot.y + 3, 4, 0, Math.PI * 2);
+      ctx.arc(shot.x + shot.w / 2, shot.y + shot.h / 2, r, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#3d8a14';
       ctx.beginPath();
-      ctx.arc(shot.x + 2, shot.y + 2, 2, 0, Math.PI * 2);
+      ctx.arc(shot.x + shot.w / 2 - 1, shot.y + shot.h / 2 - 1, Math.max(2, r - 3), 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.save();
@@ -3508,11 +3689,73 @@ function suitIndex(clip) {
   return i;
 }
 
-function drawKitBody() {
+const KIT_NECK = 30;
+const BARE_HEAD = { x: 53, y: 15, w: 64, h: 66, kitH: 24 };
+
+function drawBareHeadOnSuit(scale, neckY) {
+  const img = images['assets/hemigo/bare-idle.png'];
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const hh = BARE_HEAD.kitH * scale;
+  const hw = BARE_HEAD.w * (BARE_HEAD.kitH / BARE_HEAD.h) * scale;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    BARE_HEAD.x,
+    BARE_HEAD.y,
+    BARE_HEAD.w,
+    BARE_HEAD.h,
+    Math.round(-hw / 2),
+    Math.round(neckY - hh + 3 * scale),
+    Math.round(hw),
+    Math.round(hh),
+  );
+}
+
+function drawArmorKit() {
   const look = kitLook();
   if (!look) return false;
+  const player = state.player;
+  const stepping = player.onGround && Math.abs(player.vx) > 12;
+  const file = !player.onGround ? 'jump' : stepping ? 'walk' : 'idle';
+  const img = images[`assets/kits/${look}-${file}.png`];
+  if (!img || !img.complete || !img.naturalWidth) return false;
+  const destH = 64;
+  let sx = 0;
+  let sw = img.naturalWidth;
+  const sh = img.naturalHeight;
+  if (file === 'walk') {
+    sw = Math.floor(img.naturalWidth / KIT_WALK_N);
+    sx = kitStepFrame() * sw;
+  }
+  const scale = destH / sh;
+  const dw = sw * scale;
+  const dh = sh * scale;
+  ctx.imageSmoothingEnabled = false;
+  if (state.armor.helm) {
+    ctx.drawImage(img, sx, 0, sw, sh, Math.round(-dw / 2), Math.round(-dh), Math.round(dw), Math.round(dh));
+    return true;
+  }
+  const bodyH = sh - KIT_NECK;
+  const bodyDh = bodyH * scale;
+  ctx.drawImage(
+    img,
+    sx,
+    KIT_NECK,
+    sw,
+    bodyH,
+    Math.round(-dw / 2),
+    Math.round(-bodyDh),
+    Math.round(dw),
+    Math.round(bodyDh),
+  );
+  drawBareHeadOnSuit(scale, -bodyDh);
+  openCollar = true;
+  return true;
+}
+
+function drawBareSheet() {
   const clip = suitClip();
-  const img = images[`assets/hemigo/${look}-${clip.name}.png`];
+  const img = images[`assets/hemigo/bare-${clip.name}.png`];
   if (!img || !img.complete || !img.naturalWidth) return false;
   const frame = suitIndex(clip);
   const scale = SUIT_DRAW_H / SUIT_CELL_H;
@@ -3549,15 +3792,20 @@ function oramiClip() {
     return { name: player.attackKind, n, play: 'once', t: 1 - player.attackT / (player.attackDur || 0.3) };
   }
   if (!player.onGround) {
-    let frame = 1;
-    if (player.vy < -80) frame = 0;
-    else if (player.vy > 140) frame = 2;
-    return { name: 'jump', n: 4, play: 'frame', frame };
+    // Up: leap, high kick, clean glide. Down: fire dive, fire jet, then the landing kick.
+    let frame = 4;
+    if (player.vy < -330) frame = 0;
+    else if (player.vy < -160) frame = 1;
+    else if (player.vy < 10) frame = 2;
+    else if (player.vy < 214) frame = 3;
+    return { name: 'jump', n: 6, play: 'frame', frame };
   }
-  if (player.landT > 0) return { name: 'jump', n: 4, play: 'frame', frame: 3 };
+  if (player.landT > 0) return { name: 'jump', n: 6, play: 'frame', frame: 5 };
   if (Math.abs(player.vx) > 12) {
-    if (player.crouch) return { name: 'walk', n: 8, play: 'ping' };
-    return { name: 'run', n: 9, play: 'loop' };
+    if (!player.crouch && (player.runHold || 0) >= ORAMI_RUN_TIME) {
+      return { name: 'run', n: 6, play: 'loop', rate: 0.9 };
+    }
+    return { name: 'walk', n: 8, play: 'loop', rate: 1 };
   }
   return { name: 'idle', n: 2, play: 'idle' };
 }
@@ -3570,7 +3818,8 @@ function oramiFrame(clip) {
     return Math.min(n - 1, Math.floor(t * n));
   }
   if (clip.play === 'idle') return Math.floor(state.time * 1.4) % 10 === 0 ? 1 : 0;
-  const phase = ((state.player.gait % 1) + 1) % 1;
+  const rate = clip.rate || 1;
+  const phase = (((state.player.gait * rate) % 1) + 1) % 1;
   if (clip.play === 'loop') return Math.floor(phase * n) % n;
   const span = n * 2 - 2;
   let i = Math.floor(phase * span) % span;
@@ -3584,6 +3833,8 @@ function drawOramiBody() {
   if (!img || !img.complete || !img.naturalWidth) return;
   const frame = oramiFrame(clip);
   const scale = ORAMI_DRAW_H / ORAMI_CELL_H;
+  const ax = clip.name === 'run' ? ORAMI_RUN_X : clip.name === 'down' ? ORAMI_DOWN_X : ORAMI_BODY_X;
+  const ay = ORAMI_FEET_Y;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(
     img,
@@ -3591,11 +3842,37 @@ function drawOramiBody() {
     0,
     ORAMI_CELL_W,
     ORAMI_CELL_H,
-    Math.round(-ORAMI_BODY_X * scale),
-    Math.round(-ORAMI_FEET_Y * scale),
+    Math.round(-ax * scale),
+    Math.round(-ay * scale),
     Math.round(ORAMI_CELL_W * scale),
     Math.round(ORAMI_CELL_H * scale),
   );
+  drawOramiFx(clip, frame);
+}
+
+function drawOramiFx(clip, frame) {
+  const fx = (name) => images[`assets/orami/fx/${name}.png`];
+  const flick = Math.floor(state.time * 14) % 2;
+  if (clip.name === 'run') blit(fx(flick ? 'flame-2' : 'flame-1'), -18, 2, 18, 26);
+  if (clip.name === 'jump' && frame >= 3) {
+    if (frame === 5) blit(fx('flame-8'), 0, 16, 30, 58);
+    else if (frame === 4) blit(fx('flame-beam'), 64, -2, 18, 90);
+    else blit(fx('flame-2'), -48, 2, 24, 60);
+  }
+  if (clip.name === 'slash' && frame >= 1) {
+    if (frame >= 2) blit(fx('flame-1'), 30, -46, 34, 44, -0.55);
+    else blit(fx('flame-1'), 26, -6, 28, 38);
+  }
+  if (clip.name === 'bolt') {
+    if (frame === 1) blit(fx('flame-3'), 20, -28, 8, 10);
+    else if (frame === 2) blit(fx('flame-3'), 26, -25, 14, 16);
+    else if (frame === 3) blit(fx('flame-beam'), 52, -26, 13, 72);
+  }
+  if (clip.name === 'hurt' || clip.name === 'down') {
+    const stars = ['star-1', 'star-3', 'star-5'];
+    blit(fx(stars[Math.floor(state.time * 8) % 3]), 8, -64, 12, 14);
+    blit(fx('star-3'), -10, -72, 9, 11);
+  }
 }
 
 function drawPilot(hero, cx, bottom, face) {
@@ -3609,25 +3886,29 @@ function drawPilot(hero, cx, bottom, face) {
   const suited = !!(chest && chest.side) && !orami;
   const stepping = player.onGround && Math.abs(player.vx) > 12;
   const swing = stepping ? Math.sin((player.gait || 0) * Math.PI * 2) * 5 : 0;
-  // The action sheets already dip with the stride. Extra bob would lift the feet.
-  const bob = suited || orami ? 0 : (stepping ? -Math.abs(Math.sin((player.gait || 0) * Math.PI * 2)) * 1.5 : 0);
+  // The bare sheet already dips with the stride. The armor suit keeps its small step bob.
+  const bob = suited && stepping ? -Math.abs(Math.sin((player.gait || 0) * Math.PI * 2)) * 1.5 : 0;
   suitHand = null;
+  openCollar = false;
   ctx.save();
   ctx.translate(Math.round(cx), Math.round(bottom + bob));
   if (face < 0) ctx.scale(-1, 1);
   if (player.crouch) ctx.scale(1, 0.62);
   let kitOn = false;
+  let sheetOn = false;
   if (orami) drawOramiBody();
-  else if (suited) kitOn = drawKitBody();
+  else if (suited) kitOn = drawArmorKit();
+  else sheetOn = drawBareSheet();
+  const posed = kitOn || sheetOn;
   const lift = suited && !kitOn ? -8 : 0;
-  if (state.inv.spark) blit(images['assets/blue/16.png'], orami ? -22 : kitOn ? -14 : suited ? -22 : -16, (orami ? -44 : kitOn ? -36 : -24) + lift, 26, 12);
-  if (!orami && suited && !kitOn) {
+  if (state.inv.spark) blit(images['assets/blue/16.png'], orami ? -22 : kitOn ? -20 : sheetOn ? -14 : suited ? -22 : -16, (orami ? -44 : kitOn ? -40 : sheetOn ? -36 : -24) + lift, 26, 12);
+  if (!orami && !kitOn && suited) {
     const body = images[chest.side];
     if (stepping && body?.complete) drawSuitedWalk(body, 56, swing);
     else blit(body, 0, 2, 56, 78);
     if (helm?.worn) blit(images[helm.worn], 6, -40, 26, 30);
     else blit(images['assets/worn/pilot-head.png'], 4, -46, 16, 16);
-  } else if (!orami && !suited) {
+  } else if (!orami && !kitOn && !sheetOn) {
     const raw = images[hero.body];
     const hideArm = kind === 'sword' || kind === 'axe' || kind === 'gun' || attacking;
     const body = hideArm ? pilotNoArm(raw) : raw;
@@ -3637,12 +3918,21 @@ function drawPilot(hero, cx, bottom, face) {
     if (helm?.worn) blit(images[helm.worn], 5, -32, 24, 28);
   }
   if (state.inv.filament) blit(images['assets/gold/22.png'], -3, -16 + lift, 5, 14, Math.PI / 2);
-  if (state.inv.eye) blit(images['assets/blue/17.png'], kitOn ? 8 : 6, kitOn ? -50 : suited ? -58 : -36, 8, 8);
-  if (state.inv.shield && !shielding()) blit(images['assets/weapons/shield.png'], orami ? -20 : kitOn ? -16 : suited ? -24 : -16, (orami ? -32 : kitOn ? -28 : -20) + lift, 22, 16);
+  if (state.inv.eye) blit(images['assets/blue/17.png'], sheetOn ? 8 : 6, openCollar ? -50 : kitOn || suited ? -58 : sheetOn ? -50 : -36, 8, 8);
+  let shieldX = orami ? -20 : kitOn ? -18 : sheetOn ? -16 : suited ? -24 : -16;
+  let shieldY = orami ? -32 : kitOn ? -28 : sheetOn ? -28 : -20;
+  if (orami) {
+    const riding = oramiClip();
+    if (riding.name === 'jump' && (riding.frame === 3 || riding.frame === 4)) {
+      shieldX = -16;
+      shieldY = -2;
+    }
+  }
+  if (state.inv.shield && !shielding()) blit(images['assets/weapons/shield.png'], shieldX, shieldY + lift, 22, 16);
 
   const air = !player.onGround;
-  const bare = !suited && !orami;
-  let hand = kitOn
+  const bare = !posed && !suited && !orami;
+  let hand = posed
     ? kitHandPoint()
     : orami
       ? { x: 12, y: air ? -24 : -20 }
@@ -3651,14 +3941,14 @@ function drawPilot(hero, cx, bottom, face) {
         : bareWalkHand(lift);
 
   if (!orami && kind === 'sword') {
-    let rot = kitOn ? 0.32 : 0.55;
+    let rot = posed ? 0.32 : 0.55;
     if (attacking) {
       if (p < 0.1) rot = 0.4 - (p / 0.1) * 1.5;
       else rot = -1.1 + Math.pow(Math.min(1, (p - 0.1) / 0.72), 0.38) * 2.7;
     }
     if (bare) hand = bareWeaponHand(rot, -28);
     if (bare) drawArm(hand.x, hand.y, -28);
-    blitGrip(images['assets/gold/18.png'], hand.x, hand.y, kitOn || orami ? 30 : 26, 12, rot, kitOn ? 0.82 : 0.78);
+    blitGrip(images['assets/gold/18.png'], hand.x, hand.y, posed || orami ? 30 : 26, 12, rot, posed ? 0.82 : 0.78);
     if (attacking) drawSlash('sword', p, hand.x, hand.y);
   } else if (!orami && kind === 'axe') {
     let rot = -0.28;
@@ -3668,13 +3958,13 @@ function drawPilot(hero, cx, bottom, face) {
     }
     if (bare) hand = bareWeaponHand(rot, -24);
     if (bare) drawArm(hand.x, hand.y, -24);
-    blitHaft(images['assets/weapons/axe.png'], hand.x, hand.y, kitOn || orami ? 36 : 32, rot);
+    blitHaft(images['assets/weapons/axe.png'], hand.x, hand.y, posed || orami ? 36 : 32, rot);
     if (attacking) drawSlash('axe', p, hand.x, hand.y);
   } else if (!orami && kind === 'gun') {
     const kick = attacking ? -3 : 0;
     const grip = { x: hand.x + kick, y: hand.y };
-    const len = kitOn || orami ? 44 : 38;
-    if (!suited && !orami) drawArm(grip.x + 8, grip.y);
+    const len = posed || orami ? 44 : 38;
+    if (bare) drawArm(grip.x + 8, grip.y);
     blitRifle(images['assets/weapons/rifle.png'], grip.x, grip.y, len);
     if (attacking) {
       ctx.fillStyle = '#f4fbff';
@@ -3683,7 +3973,7 @@ function drawPilot(hero, cx, bottom, face) {
       ctx.fillRect(grip.x + len + 3, grip.y - 1, 6, 2);
     }
   } else if (!orami && attacking) {
-    if (!suited && !orami) drawArm(hand.x + Math.sin(p * Math.PI) * 6, hand.y);
+    if (bare) drawArm(hand.x + Math.sin(p * Math.PI) * 6, hand.y);
     drawSlash('fist', p, hand.x, hand.y);
   }
   if (shielding()) {
@@ -4281,6 +4571,34 @@ function crouchSlotOk(level) {
   });
 }
 
+function crouchLeads(level) {
+  const floors = level.platforms
+    .filter((plat) => plat.oneWay && !plat.slide && !/^h\d+$/.test(plat.id))
+    .sort((a, b) => a.x - b.x);
+  return level.platforms.filter((ceil) => ceil.kind === 'ceil').every((ceil) => {
+    let x = ceil.x + ceil.w;
+    let clear = 0;
+    for (const floor of floors) {
+      if (floor.x + floor.w < x - 2) continue;
+      if (floor.y !== G) break;
+      if (floor.x > x + 8) break;
+      clear += floor.x + floor.w - Math.max(x, floor.x);
+      x = floor.x + floor.w;
+      if (clear >= 180) return true;
+    }
+    return clear >= 180;
+  });
+}
+
+function fightsClear(level) {
+  const roofs = level.platforms.filter((plat) => plat.kind === 'ceil');
+  return level.enemies.every((enemy) => roofs.every((roof) => {
+    const minX = enemy.minX ?? enemy.x;
+    const maxX = enemy.maxX ?? (enemy.x + (enemy.w || 0));
+    return maxX < roof.x - 24 || minX > roof.x + roof.w + 24;
+  }));
+}
+
 function ferryReaches(level) {
   const lips = level.platforms.filter((plat) => plat.oneWay && !plat.slide);
   return level.platforms.filter((plat) => plat.slide).every((plat) => {
@@ -4310,18 +4628,21 @@ function runMapTest() {
   const t2 = jumps[1].some((jump) => jump.rise >= 28 && jump.rise < 70)
     && !levels[1].platforms.some((plat) => plat.slide || plat.kind === 'ceil')
     && levels[1].items.some((item) => item.id === 'spark');
-  const t3 = crouchSlotOk(levels[2]) && !levels[2].platforms.some((plat) => plat.slide);
+  const t3 = crouchSlotOk(levels[2]) && crouchLeads(levels[2]) && fightsClear(levels[2])
+    && !levels[2].platforms.some((plat) => plat.slide);
   const t4gaps = jumps[3].some((jump) => jump.gap >= 110);
-  const t4 = levels[3].platforms.filter((plat) => plat.slide).length >= 2 && t4gaps && crouchSlotOk(levels[3]) && ferryReaches(levels[3]);
+  const t4 = levels[3].platforms.filter((plat) => plat.slide).length >= 2 && t4gaps
+    && crouchSlotOk(levels[3]) && crouchLeads(levels[3]) && fightsClear(levels[3]) && ferryReaches(levels[3]);
   const crownStep = levels[4].platforms.some((plat) => plat.id === 'crown-step' && G - plat.y >= SHAFT);
-  const t5 = crownStep && crouchSlotOk(levels[4]) && ferryReaches(levels[4])
+  const t5 = crownStep && crouchSlotOk(levels[4]) && crouchLeads(levels[4]) && fightsClear(levels[4])
+    && ferryReaches(levels[4])
     && levels[4].platforms.filter((plat) => plat.slide).length >= 2;
   const longer = exits.every((x, index) => index === 0 || x > exits[index - 1]);
   const shaftCount = shafts.join() === '2,3,4,5,6';
   const flyers = levels.map((level) => level.enemies.filter((enemy) => enemy.kind === 'flyer'));
-  const armed = flyers[2].every((enemy) => !enemy.shoot)
-    && flyers[3].length >= 6 && flyers[3].every((enemy) => enemy.shoot)
-    && flyers[4].length > flyers[3].length && flyers[4].every((enemy) => enemy.shoot);
+  const armed = flyers[2].length === 2 && flyers[2].every((enemy) => !enemy.shoot)
+    && flyers[3].length === 2 && flyers[3].every((enemy) => enemy.shoot)
+    && flyers[4].length === 3 && flyers[4].every((enemy) => enemy.shoot);
   const different = jumps.map((list) => list.map((jump) => `${jump.gap}:${jump.rise}`).join('|'))
     .every((sig, index, all) => all.indexOf(sig) === index);
   const checks = { porch, riseHop, t1, t2, t3, t4, t5, longer, shaftCount, armed, different };
@@ -4598,10 +4919,9 @@ function runGaleTest() {
   const early = flyersOf(3);
   const galeFlyers = flyersOf(4);
   const crownFlyers = flyersOf(5);
-  const armed = early.every((enemy) => !enemy.shoot)
-    && galeFlyers.every((enemy) => enemy.shoot)
-    && crownFlyers.length > galeFlyers.length
-    && galeFlyers.length >= 6;
+  const armed = early.length === 2 && early.every((enemy) => !enemy.shoot)
+    && galeFlyers.length === 2 && galeFlyers.every((enemy) => enemy.shoot)
+    && crownFlyers.length === 3 && crownFlyers.every((enemy) => enemy.shoot);
   startGame('gale');
   const slides = state.level.platforms.filter((plat) => plat.slide);
   const x0 = slides[0]?.x;
