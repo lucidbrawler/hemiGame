@@ -1,8 +1,9 @@
 import { defineConfig } from 'astro/config';
 import netlify from '@astrojs/netlify';
 
-// Hemi Relay Zone. The game page is static. /api/chains is on-demand
-// and only reads the public Hemi mainnet block. It does not sign or spend.
+// Hemi Relay Zone. The game page is static. /api/chains reads the public
+// Hemi mainnet block. /api/scores stores wallet high scores for the list.
+// Neither route signs or spends.
 export default defineConfig({
   adapter: netlify({
     imageCDN: false,

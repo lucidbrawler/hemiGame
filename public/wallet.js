@@ -38,18 +38,28 @@ function setWalletNote(text) {
   walletNote.textContent = text;
 }
 
+function publishWallet(address, chainId) {
+  const hex = String(address || '').toLowerCase();
+  const onHemi = chainId === HEMI_CHAIN_ID && /^0x[0-9a-f]{40}$/.test(hex);
+  window.relayWallet = onHemi
+    ? { address: hex, chainId: HEMI_CHAIN_ID }
+    : { address: null, chainId: Number.isFinite(chainId) ? chainId : null };
+  window.dispatchEvent(new CustomEvent('relay-wallet', { detail: window.relayWallet }));
+}
+
 function paintWallet(address, chainId) {
   const onHemi = chainId === HEMI_CHAIN_ID;
+  publishWallet(address, chainId);
   if (!walletButton) return;
   walletButton.classList.toggle('is-on', !!address && onHemi);
   if (!address) {
     walletButton.textContent = 'Connect wallet';
-    setWalletNote('Best clears stay in this browser. Connecting does not sign or spend.');
+    setWalletNote('Best clears stay in this browser. The list keeps a high score for each Hemi wallet. Connecting does not sign or spend.');
     return;
   }
   walletButton.textContent = onHemi ? shortWallet(address) : 'Switch to Hemi';
   setWalletNote(onHemi
-    ? `Connected on Hemi mainnet. Best clears stay in this browser under relay-zone-best. Nothing is signed or spent.`
+    ? 'Connected on Hemi mainnet. This wallet’s high score is on the list. Nothing is signed or spent.'
     : 'This wallet is on another network. Hemi mainnet is chain 43111.');
 }
 

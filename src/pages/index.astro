@@ -16,7 +16,8 @@ export const prerender = true;
       <p class="eyebrow" id="zone-count">Five Hemi stages</p>
       <h1>Pick a map</h1>
       <p class="lede">
-        Pick Hemigo or Orami, then pick a map. Space jumps. Hold Ctrl or Down to crouch. E swings, chops, or fires.
+        Pick Hemigo or Orami, then pick a map. Orami stays locked until all five rises are clear.
+        Space jumps. Hold Ctrl or Down to crouch. E swings, chops, or fires.
         The mouse wheel cycles weapons you have found. Hold Q to raise a shield.
         F confirms the post at the top. The grass rise has no armor and no spark.
         Its relay is two steps, one hop each. The spark is on the mountain rise.
@@ -31,10 +32,10 @@ export const prerender = true;
           <span class="runner-name">Hemigo</span>
           <span class="runner-role">Empty hands. The sword and the shield are on the ground. Armor comes later.</span>
         </button>
-        <button type="button" class="runner" data-hero="orami" id="pick-orami" aria-pressed="false">
-          <img src="/assets/orami/idle.png" alt="" />
+        <button type="button" class="runner is-locked" data-hero="orami" id="pick-orami" aria-pressed="false">
+          <img src="/assets/orami/portrait.png" alt="" />
           <span class="runner-name">Orami</span>
-          <span class="runner-role">The orange suit. Same jump, same weapons, same five rises.</span>
+          <span class="runner-role">Locked until all five rises are clear.</span>
         </button>
       </div>
       <div class="zones">
@@ -109,15 +110,15 @@ export const prerender = true;
       </p>
       <div class="wallet-row">
         <button type="button" id="wallet-connect" class="quit wallet-btn">Connect wallet</button>
-        <p id="wallet-note" class="wallet-note">Best clears stay in this browser. Connecting does not sign or spend.</p>
+        <p id="wallet-note" class="wallet-note">Best clears stay in this browser. The list keeps a high score for each Hemi wallet. Connecting does not sign or spend.</p>
       </div>
       <div id="select-chips" class="chips" aria-live="polite"></div>
-      <p id="best-score" class="best-score" hidden></p>
+      <div id="best-score" class="best-score" hidden></div>
       <p class="fine">
-        Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is harder. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
+        Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is harder, and the ground changes: short hops, then pads, a crouch, sliding bridges, and a high step. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
         The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
         An even block puts a Shard just behind the gate. An odd block puts a Hex there.
-        The boss fires as you approach the gate. One shot, then two spaced shots, then a longer rest. It chases when it is hurt or you are down to two marks. Librarians pace, hop, and spit acid.
+        The boss fires as you approach the gate. One shot, then two spaced shots, then a longer rest. It chases when it is hurt or you are down to two marks. Losing all five marks sends you back to the last checkpoint and costs 500 points. Librarians pace, hop, and spit acid. On Deep, Gale, and Crown that acid sits on the ground for a few seconds.
         The page score follows that same Hemi block.
         The chip stays on screen and stays read-only. Nothing here signs or spends.
       </p>

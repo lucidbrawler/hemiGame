@@ -104,6 +104,10 @@ h1 {
   box-shadow: 0 0 0 2px rgba(255, 177, 90, 0.35);
 }
 
+.runner.is-locked {
+  opacity: 0.62;
+}
+
 .runner[data-hero="hemigo"].is-picked {
   border-color: #7ee7ff;
   box-shadow: 0 0 0 2px rgba(126, 231, 255, 0.35);
@@ -404,6 +408,25 @@ h1 {
   margin: 8px 0 0;
   font-size: 13px;
 }
+
+.best-score p { margin: 0; }
+
+.best-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-width: 280px;
+}
+
+.best-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 231, 163, 0.16);
+}
+
+.best-list li.is-mine { color: #fff6d4; }
 
 .wallet-row {
   display: flex;
