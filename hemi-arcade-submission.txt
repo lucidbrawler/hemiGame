@@ -1,0 +1,52 @@
+Relay Zones — Hemi Arcade Contest 2: Turbo Edition
+Post this in #game-contest-2.
+
+Game: Relay Zones
+Builder: jax (solo)
+Repo: https://github.com/lucidbrawler/hemiGame
+License: MIT (Copyright 2026 jax)
+Play: https://relay-zone.netlify.app/
+Language: JavaScript (Astro, canvas). No Solidity.
+
+What it is
+A free five-stage side runner. You pick Hemigo, then clear Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, and Hemi Crown. Orami stays locked until all five are clear. Each stage changes the ground: short hops, raised pads, a low roof you have to crouch under, sliding bridges, then a taller step. Weapons and armor you pick up stay with you. A Shard or a Hex waits behind the gate. The door opens when that boss drops.
+
+Entry requirements
+
+Free to play: Yes.
+No entry fee, purchase, paywall, or in-game payment. The wallet button only asks for an account and can switch the wallet to Hemi mainnet. It does not sign, approve, or send a transaction. No gas is spent.
+
+Onchain, Hemi Mainnet only: Yes. Chain id 43111. RPC https://rpc.hemi.network/rpc.
+No other network is read. Pressing start calls eth_blockNumber on Hemi mainnet.
+- An even block plants a Shard behind the gate. An odd block plants a Hex.
+- That same block picks where the glowing page sits and what it is worth (80, 140, or 200).
+- The chip on screen shows that block and stays read-only.
+High scores are kept by the app for each connected Hemi address. They are not written on chain. Nothing in the game signs or spends.
+
+Open source: Yes.
+Public GitHub repo: https://github.com/lucidbrawler/hemiGame
+
+License: Yes. MIT only.
+LICENSE is in the repo root. package.json license is MIT.
+
+Hosted: Yes. Netlify.
+https://relay-zone.netlify.app/
+
+Language: JavaScript.
+
+Permission: Granted.
+Relay Zones may be included in future Hemi events, Hemi sites, and future HAIRGames seasons. The game stays owned by the builder.
+
+How to play
+Desktop: A D or arrows move. Space jumps. Hold Ctrl, S, or Down to crouch. E attacks. Hold Q to guard. Mouse wheel cycles weapons you have found. F or right-click confirms the relay. I opens armor.
+Phone: thumb stick on the left. Guard, Jump, Hit, and Use on the right.
+Five marks of health. Losing all five costs 500 points and sends you back to the last checkpoint. A fall does not.
+Connect wallet is optional. It does not sign or spend.
+
+Credits
+Character, armor, weapon, and stage art was generated with Grok.
+Mobs were drawn by jax.
+The sprite sheet was shared on the Hemi Discord by Rick 401.
+
+Team
+Solo. One entry.

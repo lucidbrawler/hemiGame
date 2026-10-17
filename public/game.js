@@ -3836,6 +3836,7 @@ function drawOramiBody() {
   const ax = clip.name === 'run' ? ORAMI_RUN_X : clip.name === 'down' ? ORAMI_DOWN_X : ORAMI_BODY_X;
   const ay = ORAMI_FEET_Y;
   ctx.imageSmoothingEnabled = false;
+  if (clip.name === 'jump' && (frame === 3 || frame === 4)) drawKickTrail(frame);
   ctx.drawImage(
     img,
     frame * ORAMI_CELL_W,
@@ -3850,15 +3851,44 @@ function drawOramiBody() {
   drawOramiFx(clip, frame);
 }
 
+// Hot core on the rear sole. The tail points back and drops, under the boot.
+function drawKickTrail(frame) {
+  const beam = frame === 4;
+  const img = images[beam ? 'assets/orami/fx/flame-beam.png' : 'assets/orami/fx/flame-2.png'];
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const height = beam ? 13 : 16;
+  const maxW = beam ? 72 : 50;
+  const rot = beam ? 0.28 : 0.42;
+  const footX = beam ? -21 : -30.2;
+  const footY = beam ? 0.2 : 1.6;
+  const brightX = beam ? 93 / 300 : 135 / 199;
+  const brightY = beam ? 36 / 70 : 52 / 101;
+  let h = height;
+  let w = img.naturalWidth * (height / img.naturalHeight);
+  if (w > maxW) {
+    w = maxW;
+    h = img.naturalHeight * (maxW / img.naturalWidth);
+  }
+  ctx.save();
+  ctx.translate(footX, footY);
+  ctx.rotate(rot);
+  if (beam) ctx.scale(-1, 1);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    Math.round(-brightX * w),
+    Math.round(-brightY * h),
+    Math.round(w),
+    Math.round(h),
+  );
+  ctx.restore();
+}
+
 function drawOramiFx(clip, frame) {
   const fx = (name) => images[`assets/orami/fx/${name}.png`];
   const flick = Math.floor(state.time * 14) % 2;
   if (clip.name === 'run') blit(fx(flick ? 'flame-2' : 'flame-1'), -18, 2, 18, 26);
-  if (clip.name === 'jump' && frame >= 3) {
-    if (frame === 5) blit(fx('flame-8'), 0, 16, 30, 58);
-    else if (frame === 4) blit(fx('flame-beam'), 64, -2, 18, 90);
-    else blit(fx('flame-2'), -48, 2, 24, 60);
-  }
+  if (clip.name === 'jump' && frame === 5) blit(fx('flame-8'), 0, 16, 30, 58);
   if (clip.name === 'slash' && frame >= 1) {
     if (frame >= 2) blit(fx('flame-1'), 30, -46, 34, 44, -0.55);
     else blit(fx('flame-1'), 26, -6, 28, 38);
