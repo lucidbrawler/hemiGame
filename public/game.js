@@ -264,7 +264,7 @@ loadImage(ORAMI.body);
 for (const name of ['idle', 'walk', 'run', 'jump', 'slash', 'bolt', 'hurt', 'down', 'fireball', 'icon-slash', 'icon-bolt']) {
   loadImage(`assets/orami/${name}.png`);
 }
-for (const name of ['flame-1', 'flame-2', 'flame-3', 'flame-6', 'flame-8', 'flame-beam', 'star-1', 'star-3', 'star-5']) {
+for (const name of ['flame-1', 'flame-2', 'flame-3', 'flame-6', 'flame-8', 'flame-beam', 'flame-blast', 'flame-blast-2', 'star-1', 'star-3', 'star-5']) {
   loadImage(`assets/orami/fx/${name}.png`);
 }
 for (const name of ['idle', 'walk', 'run', 'jump']) {
@@ -1088,6 +1088,7 @@ function startGame(zoneId) {
     sealOpen: false,
     powered: false,
     shots: [],
+    blasts: [],
     puddles: [],
     fireHits: 0,
     cam: { x: 0, y: 0 },
@@ -1736,7 +1737,7 @@ function spawnFireball() {
   const player = state.player;
   const dir = player.face < 0 ? -1 : 1;
   const size = 16;
-  // The cast grows in the open palm. The shot leaves from that hand.
+  // The orb leaves the open palm. The blast is only the muzzle flash.
   const handForward = 26;
   const handUp = player.crouch ? 20 : 32;
   state.shots.push({
@@ -1750,6 +1751,14 @@ function spawnFireball() {
     fire: true,
     friendly: true,
     power: boltPower(),
+  });
+  const coreForward = player.crouch ? 34 : 46;
+  const coreUp = player.crouch ? 18 : 30;
+  state.blasts.push({
+    x: player.x + player.w / 2 + dir * coreForward,
+    y: player.y + player.h - coreUp,
+    dir,
+    life: 0.28,
   });
 }
 
@@ -1830,6 +1839,7 @@ function respawn(why) {
   player.hp = state.maxHp;
   player.iframes = 1.2;
   state.shots = [];
+  state.blasts = [];
   renderHud();
   toast(why || 'Back at the last checkpoint.');
 }
@@ -2486,6 +2496,8 @@ function update(dt) {
   }
   const shotFar = (state.level.exit?.x || 4000) + 900;
   state.shots = state.shots.filter((shot) => shot.life > 0 && shot.x > -40 && shot.x < shotFar && shot.y > -160 && shot.y < G + 80);
+  for (const blast of state.blasts) blast.life -= dt;
+  state.blasts = state.blasts.filter((blast) => blast.life > 0);
   soakPuddles(dt);
 
   scorchJump();
@@ -3305,20 +3317,15 @@ function draw() {
 
   for (const shot of state.shots) {
     if (shot.fire) {
-      const ball = shot.friendly ? images['assets/orami/fireball.png'] : null;
-      if (ball && ball.complete && ball.naturalWidth) {
-        ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(ball, Math.round(shot.x), Math.round(shot.y), shot.w, shot.h);
-      } else {
-        ctx.fillStyle = '#ff3b00';
-        ctx.beginPath();
-        ctx.arc(shot.x + 5, shot.y + 5, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffd15a';
-        ctx.beginPath();
-        ctx.arc(shot.x + 4, shot.y + 4, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      if (shot.friendly) continue;
+      ctx.fillStyle = '#ff3b00';
+      ctx.beginPath();
+      ctx.arc(shot.x + 5, shot.y + 5, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd15a';
+      ctx.beginPath();
+      ctx.arc(shot.x + 4, shot.y + 4, 3, 0, Math.PI * 2);
+      ctx.fill();
     } else if (shot.acid) {
       const r = Math.max(5, Math.round((shot.w || 10) * 0.55));
       ctx.fillStyle = '#d6ff6a';
@@ -3344,6 +3351,15 @@ function draw() {
   const player = state.player;
   if (player.iframes <= 0 || Math.floor(state.time * 20) % 2 === 0) {
     drawPilot(state.hero, player.x + player.w / 2, player.y + player.h + 2, player.face);
+  }
+  for (const blast of state.blasts || []) drawFireBlast(blast);
+  const fireball = images['assets/orami/fireball.png'];
+  for (const shot of state.shots) {
+    if (!shot.fire || !shot.friendly) continue;
+    if (fireball && fireball.complete && fireball.naturalWidth) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(fireball, Math.round(shot.x), Math.round(shot.y), shot.w, shot.h);
+    }
   }
   for (const pop of state.pops || []) {
     ctx.globalAlpha = Math.max(0.2, pop.life / 0.7);
@@ -3896,13 +3912,39 @@ function drawOramiFx(clip, frame) {
   if (clip.name === 'bolt') {
     if (frame === 1) blit(fx('flame-3'), 20, -28, 8, 10);
     else if (frame === 2) blit(fx('flame-3'), 26, -25, 14, 16);
-    else if (frame === 3) blit(fx('flame-beam'), 52, -26, 13, 72);
   }
   if (clip.name === 'hurt' || clip.name === 'down') {
     const stars = ['star-1', 'star-3', 'star-5'];
     blit(fx(stars[Math.floor(state.time * 8) % 3]), 8, -64, 12, 14);
     blit(fx('star-3'), -10, -72, 9, 11);
   }
+}
+
+// White core leads. The orange trail points back toward the shooter.
+// Core sits 46/72 across and 30/59 down the authored blast.
+const BLAST_CORE_X = 46 / 72;
+const BLAST_CORE_Y = 30 / 59;
+const BLAST_H = 42;
+
+function drawFireBlast(blast) {
+  const flick = Math.floor(state.time * 16) % 2;
+  const img = images[`assets/orami/fx/${flick ? 'flame-blast-2' : 'flame-blast'}.png`];
+  if (!img || img.complete === false || !img.naturalWidth) return;
+  const dir = blast.dir < 0 ? -1 : 1;
+  const h = BLAST_H;
+  const w = img.naturalWidth * (h / img.naturalHeight);
+  ctx.save();
+  ctx.translate(Math.round(blast.x), Math.round(blast.y));
+  if (dir < 0) ctx.scale(-1, 1);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    img,
+    Math.round(-BLAST_CORE_X * w),
+    Math.round(-BLAST_CORE_Y * h),
+    Math.round(w),
+    Math.round(h),
+  );
+  ctx.restore();
 }
 
 function drawPilot(hero, cx, bottom, face) {
