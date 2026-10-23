@@ -54,12 +54,12 @@ function paintWallet(address, chainId) {
   walletButton.classList.toggle('is-on', !!address && onHemi);
   if (!address) {
     walletButton.textContent = 'Connect wallet';
-    setWalletNote('Best clears stay in this browser. The list keeps a high score for each Hemi wallet. Connecting does not sign or spend.');
+    setWalletNote('Best clears stay in this browser, one score for each stage. The list keeps a high score for each Hemi wallet on each stage. Connecting does not sign or spend.');
     return;
   }
   walletButton.textContent = onHemi ? shortWallet(address) : 'Switch to Hemi';
   setWalletNote(onHemi
-    ? 'Connected on Hemi mainnet. This wallet’s high score is on the list. Nothing is signed or spent.'
+    ? 'Connected on Hemi mainnet. This wallet’s high score is kept for each stage. Nothing is signed or spent.'
     : 'This wallet is on another network. Hemi mainnet is chain 43111.');
 }
 

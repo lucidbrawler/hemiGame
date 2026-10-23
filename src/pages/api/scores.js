@@ -23,6 +23,6 @@ export async function POST({ request }) {
   } catch {
     body = {};
   }
-  const result = await submitScore(body.address, body.score);
+  const result = await submitScore(body.address, body.zone, body.score, body.hero);
   return new Response(JSON.stringify(result), { status: result.ok ? 200 : 400, headers });
 }

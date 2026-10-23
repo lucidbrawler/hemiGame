@@ -44,26 +44,31 @@ export const prerender = true;
         <button type="button" id="start-hemi" class="zone-pick hemi">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Rise</span>
+          <span class="zone-best" hidden></span>
           <span class="zone-blurb">Open grass. No armor and no spark. The ditches change width as you go, then two steps, and one hop clears each. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
         </button>
         <button type="button" id="start-wart" class="zone-pick wart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Span</span>
+          <span class="zone-best" hidden></span>
           <span class="zone-blurb">Warm stone mountains. The pads change height as you go. The Hemi spark is on the floor before the shaft, and the shaft needs that second hop. Chest plates are here too. No helm yet.</span>
         </button>
         <button type="button" id="start-cart" class="zone-pick cart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Deep</span>
+          <span class="zone-best" hidden></span>
           <span class="zone-blurb">Jungle canopy. A low roof, then another, and the floor keeps changing between them. A wisp waits near the gate. No new armor here. Gear you already picked up comes with you.</span>
         </button>
         <button type="button" id="start-gale" class="zone-pick gale">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Gale</span>
+          <span class="zone-best" hidden></span>
           <span class="zone-blurb">Icy winter tundra. Sliding spans of different lengths, shelves that change height, a gold helm on the ground, and skimmers that fire down on a slant.</span>
         </button>
         <button type="button" id="start-crown" class="zone-pick crown">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Crown</span>
+          <span class="zone-best" hidden></span>
           <span class="zone-blurb">Volcanic mountains. Pads, a bridge, the spark, a low roof, and a high step, then the peak changes again. A blue helm is on the ground. Skimmers keep firing on the diagonal.</span>
         </button>
       </div>
@@ -112,10 +117,14 @@ export const prerender = true;
       </p>
       <div class="wallet-row">
         <button type="button" id="wallet-connect" class="quit wallet-btn">Connect wallet</button>
-        <p id="wallet-note" class="wallet-note">Best clears stay in this browser. The list keeps a high score for each Hemi wallet. Connecting does not sign or spend.</p>
+        <p id="wallet-note" class="wallet-note">Best clears stay in this browser, one score for each stage. The list keeps a high score for each Hemi wallet on each stage. Connecting does not sign or spend.</p>
       </div>
       <div id="select-chips" class="chips" aria-live="polite"></div>
       <div id="best-score" class="best-score" hidden></div>
+      <div class="reset-row">
+        <button type="button" id="reset-open" class="quit reset-btn" aria-haspopup="dialog">Reset journey</button>
+        <p class="wallet-note">Forget your past and start again from scratch. Clears this browser's clears, gear, and best scores. Orami locks again. The online high-score list is not touched.</p>
+      </div>
       <p class="fine">
         Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is longer than the last, and the ground keeps changing as you cross it: short hops, then pads, a crouch, sliding bridges, and a high step. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
         The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
@@ -132,7 +141,10 @@ export const prerender = true;
       <div class="hud-top">
         <div id="zone-name" class="zone-name">Hemi Rise</div>
         <div id="vital" class="vital" title="Health"></div>
-        <div id="score" class="score">0</div>
+        <div class="score-stack">
+          <div id="score" class="score">0</div>
+          <div id="stage-best" class="stage-best" hidden></div>
+        </div>
         <div id="inv" class="inv"></div>
         <button type="button" id="bag-open" class="quit bag-btn">Bag</button>
         <button type="button" id="quit" class="quit">Quit</button>
@@ -191,6 +203,18 @@ export const prerender = true;
       <button type="button" id="again" class="start">Run it again</button>
     </div>
   </section>
+
+  <div id="reset-confirm" class="reset-confirm" hidden>
+    <div class="reset-card" role="alertdialog" aria-modal="true" aria-labelledby="reset-title" aria-describedby="reset-body">
+      <p class="eyebrow">Reset</p>
+      <h2 id="reset-title">Forget your past?</h2>
+      <p id="reset-body" class="bag-help">You lose touch with your Hemi power and start again from scratch. Your clears, gear, armor, and best scores on this device are gone. Orami is locked again.</p>
+      <div class="reset-actions">
+        <button type="button" id="reset-cancel" class="start">Keep my past</button>
+        <button type="button" id="reset-yes" class="quit reset-yes">Forget</button>
+      </div>
+    </div>
+  </div>
 
   <pre id="sim-out" hidden></pre>
   <script is:inline src="/wallet.js"></script>

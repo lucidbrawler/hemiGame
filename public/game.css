@@ -199,7 +199,9 @@ h1 {
 
 .zone-pick[hidden],
 .select-note[hidden],
-.zone-clear[hidden] { display: none; }
+.zone-clear[hidden],
+.zone-best[hidden],
+.stage-best[hidden] { display: none; }
 
 .zone-pick {
   text-align: left;
@@ -244,6 +246,13 @@ h1 {
   color: #9dffc8;
   font-size: 10px;
   letter-spacing: 0.12em;
+}
+.zone-best {
+  display: block;
+  color: #ffe7a3;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  margin: 0 0 6px;
 }
 .zone-pick .zone-blurb {
   display: block;
@@ -397,11 +406,24 @@ h1 {
   text-transform: uppercase;
 }
 
+.score-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.05;
+  min-width: 3ch;
+}
+
 .score {
   color: #ffe7a3;
   font-size: 14px;
   letter-spacing: 0.04em;
-  min-width: 3ch;
+}
+
+.stage-best {
+  color: #c9b27a;
+  font-size: 10px;
+  letter-spacing: 0.03em;
 }
 
 .goal {
@@ -418,6 +440,14 @@ h1 {
 }
 
 .best-score p { margin: 0; }
+
+.best-score .best-stage {
+  margin: 10px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff6d4;
+}
 
 .best-list {
   list-style: none;
@@ -456,6 +486,56 @@ h1 {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.reset-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.reset-btn {
+  min-height: 36px;
+  color: var(--pink);
+  border-color: rgba(255, 107, 138, 0.5);
+}
+
+.reset-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(6, 8, 16, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+.reset-confirm[hidden] { display: none; }
+
+.reset-card {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: #1a1030;
+  border: 2px solid var(--pink);
+  padding: 14px 16px 16px;
+}
+.reset-card h2 { margin: 0 0 6px; font-size: 26px; }
+
+.reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.reset-actions .start { flex: 1 1 160px; }
+.reset-yes {
+  flex: 1 1 120px;
+  min-height: 44px;
+  color: var(--pink);
+  border-color: var(--pink);
 }
 
 .vital {

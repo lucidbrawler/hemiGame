@@ -16,6 +16,7 @@
  * The fire slash is his. A fireball sits where the axe and the rifle were.
  * Jumping through a foe burns. He walks until three seconds of forward movement, then lunges.
  * The Hemi block you start on plants one glowing page, its score, and the boss at the door.
+ * A run's score belongs to that stage and is marked Hemigo or Orami. The best on Hemi Rise stays apart from the best on Hemi Crown.
  * An even block calls a Shard. An odd block calls a Hex.
  * Each boss alternates one shot and a two-note shape, then takes a longer rest.
  * Later rises play that same phrase a little faster.
@@ -214,6 +215,10 @@ const el = {
   selectNote: document.getElementById('select-note'),
   zoneCount: document.getElementById('zone-count'),
   again: document.getElementById('again'),
+  resetOpen: document.getElementById('reset-open'),
+  resetBox: document.getElementById('reset-confirm'),
+  resetCancel: document.getElementById('reset-cancel'),
+  resetYes: document.getElementById('reset-yes'),
   quit: document.getElementById('quit'),
   bagOpen: document.getElementById('bag-open'),
   bag: document.getElementById('bag'),
@@ -229,6 +234,7 @@ const el = {
   zoneName: document.getElementById('zone-name'),
   vital: document.getElementById('vital'),
   score: document.getElementById('score'),
+  stageBest: document.getElementById('stage-best'),
   goal: document.getElementById('goal'),
   best: document.getElementById('best-score'),
   winEyebrow: document.getElementById('win-eyebrow'),
@@ -434,10 +440,11 @@ function buildStage(tier) {
     cursor += w;
     return at;
   };
-  const ferry = (id, pit, deckW, travel, rise, phase, rate = 0.9) => {
+  // inset is where the deck sits at the middle of its swing, measured from the near lip. The old default was -20.
+  const ferry = (id, pit, deckW, travel, rise, phase, rate = 0.9, inset = -20) => {
     const left = cursor;
     cursor += pit;
-    const home = left - 20;
+    const home = left + inset;
     const y = G - rise;
     platforms.push({
       id,
@@ -455,6 +462,12 @@ function buildStage(tier) {
       bob: 0,
     });
     return home;
+  };
+  // Every bridge is a small piece. It swings from 8 units off the near lip to about 10 units off the far lip, so you
+  // hop on, ride it, and hop off. The travel follows from the pit and the deck width.
+  const smallFerry = (id, pit, deckW, rise, phase, rate = 0.9) => {
+    const travel = Math.round((pit - 18 - deckW) / 2);
+    return ferry(id, pit, deckW, travel, rise, phase, rate, 8 + travel);
   };
   const tunnel = (id, w) => {
     const at = cursor;
@@ -490,7 +503,7 @@ function buildStage(tier) {
     return { top, topEnd: top.x + top.w };
   };
 
-  const marks = { skim: [], checks: [] };
+  const marks = { skim: [], lib: [], checks: [] };
   ground('a', 400);
 
   if (tier === 1) {
@@ -504,7 +517,7 @@ function buildStage(tier) {
     marks.skim.push(meadow + 370);
     hole(44);
     const grove = ground('grove', 300);
-    marks.lib = [[grove + 160, 50]];
+    marks.lib.push([grove + 160, 50]);
     hole(28);
     const bend = ground('bend', 400);
     marks.axe = bend + 140;
@@ -524,7 +537,8 @@ function buildStage(tier) {
     marks.skim.push(field + 380);
     marks.checks.push(field + 20);
     hole(32);
-    ground('lip', 420);
+    const lip = ground('lip', 420);
+    marks.lib.push([lip + 200, 50]);
     hole(30);
     ground('last', fit());
     over('canopy-1', bend + 250, 52, 110);
@@ -552,7 +566,7 @@ function buildStage(tier) {
     hole(48);
     const bridge = ground('bridge', 260);
     marks.sword = bridge + 60;
-    marks.lib = [[bridge + 150, 40]];
+    marks.lib.push([bridge + 150, 40]);
     hole(36);
     deck('pad-e', 32, 150);
     hole(44);
@@ -588,6 +602,7 @@ function buildStage(tier) {
     hole(50);
     const mid = ground('mid', 520);
     marks.lib.push([mid + 220, 50]);
+    marks.lib.push([mid + 400, 45]);
     marks.checks.push(mid + 20);
     hole(38);
     deck('pad-h', 44, 150);
@@ -623,7 +638,7 @@ function buildStage(tier) {
     marks.ember = [pocket + 200];
     hole(36);
     const mid = ground('mid', 460);
-    marks.lib = [[mid + 200, 50]];
+    marks.lib.push([mid + 200, 50]);
     hole(40);
     deck('hollow-a', 30, 140);
     hole(34);
@@ -661,6 +676,7 @@ function buildStage(tier) {
     deck('spur', 40, 150);
     hole(42);
     const lip = ground('lip', 420);
+    marks.lib.push([lip + 180, 50]);
     marks.checks.push(lip + 20);
     hole(30);
     ground('last', fit());
@@ -672,15 +688,15 @@ function buildStage(tier) {
   } else if (tier === 4) {
     // Gale: ferries and ice. A ferry opens it, a wind row of two more ferries splits two isles, and a lane
     // of skimmers closes it. A secret skyway (spark only) runs over the wind row.
-    ferry('glide-a', 150, 176, 42, 0, 0.2);
+    smallFerry('glide-a', 150, 59, 0, 0.2);
     const far = ground('far', 320);
     marks.helm = far + 120;
-    ferry('glide-b', 178, 188, 54, 0, 1.5);
+    smallFerry('glide-b', 170, 63, 0, 1.5);
     const lead = ground('lead', 260);
     marks.sword = lead + 80;
     const slot = tunnel('ceil', 240);
     const stand = ground('stand', 380);
-    marks.lib = [[stand + 220, 50]];
+    marks.lib.push([stand + 220, 50]);
     hole(34);
     deck('ice-a', 34, 150);
     hole(30);
@@ -688,7 +704,7 @@ function buildStage(tier) {
     hole(46);
     const notch = ground('notch', 360);
     marks.axe = notch + 90;
-    ferry('glide-c', 164, 174, 48, 0, 2.2, 1.12);
+    smallFerry('glide-c', 156, 58, 0, 2.2, 0.95);
     const cross = ground('cross', 440);
     marks.spark = cross + 80;
     marks.ember = [cross + 240];
@@ -700,9 +716,9 @@ function buildStage(tier) {
     const basin = ground('basin', 640);
     marks.plate = basin + 180;
     const wind = cursor;
-    ferry('glide-e', 130, 170, 44, 0, 0.7, 0.8);
+    smallFerry('glide-e', 130, 70, 0, 0.7, 0.8);
     const isleA = ground('isle-a', 300);
-    ferry('glide-f', 150, 176, 52, 0, 2.9, 1.0);
+    smallFerry('glide-f', 150, 72, 0, 2.9, 1.0);
     ground('isle-b', 420);
     hole(36);
     deck('ice-e', 40, 160);
@@ -710,8 +726,9 @@ function buildStage(tier) {
     const field = ground('field', 560);
     marks.skim.push(field + 200);
     marks.checks.push(field + 20);
-    ferry('glide-d', 134, 170, 40, 0, 0.9, 0.7);
+    smallFerry('glide-d', 134, 70, 0, 0.9, 0.7);
     const rim = ground('rim', 480);
+    marks.skim.push(rim + 220);
     hole(36);
     ground('floe-1', 400);
     hole(44);
@@ -730,6 +747,7 @@ function buildStage(tier) {
     marks.checks.push(ridge + 20);
     const slotB = tunnel('ceil-b', 240);
     const runAt = ground('run', 560);
+    marks.lib.push([runAt + 260, 50]);
     marks.checks.push(runAt + 20);
     hole(40);
     deck('ice-i', 50, 150);
@@ -758,14 +776,14 @@ function buildStage(tier) {
     const before = ground('before', 220);
     marks.sword = before + 60;
     marks.helm = before + 150;
-    ferry('glide-a', 140, 190, 44, 0, 0.35);
+    smallFerry('glide-a', 140, 75, 0, 0.35);
     const sparkDeck = ground('sparkdeck', 260);
     marks.spark = sparkDeck + 80;
     const slot = tunnel('ceil-a', 220);
     ground('stand', 400);
     deck('crown-step', SHAFT, 200);
     hole(24);
-    ferry('glide-b', 150, 180, 56, 40, 1.7);
+    smallFerry('glide-b', 150, 72, 40, 1.7);
     const lava = ground('lava', 700);
     marks.axe = lava + 120;
     marks.skim.push(lava + 360);
@@ -775,11 +793,12 @@ function buildStage(tier) {
     deck('cinder-b', 72, 140);
     hole(50);
     ground('ash', 380);
-    ferry('glide-c', 148, 184, 50, 0, 2.1, 1.08);
+    smallFerry('glide-c', 148, 74, 0, 2.1, 1.08);
     const rim = ground('rim', 320);
     hole(30);
     tunnel('ceil-b', 240);
-    ground('duck', 420);
+    const duck = ground('duck', 420);
+    marks.lib.push([duck + 200, 50]);
     hole(44);
     ground('dune-a', 520);
     hole(38);
@@ -802,7 +821,7 @@ function buildStage(tier) {
     deck('fall-b', 34, 140);
     hole(40);
     const vale = ground('vale', 720);
-    marks.lib = [[vale + 250, 50]];
+    marks.lib.push([vale + 250, 50]);
     marks.checks.push(vale + 20);
     hole(46);
     const magma = deck('magma', 58, 150);
@@ -814,21 +833,22 @@ function buildStage(tier) {
     marks.skim.push(brand + 300);
     hole(36);
     deck('spire', 40, 170);
-    ferry('glide-d', 136, 176, 44, 20, 0.6, 0.74);
+    smallFerry('glide-d', 136, 70, 20, 0.6, 0.74);
     const caldera = ground('caldera', 560);
     hole(48);
     ground('flow', 360);
     const run = cursor;
-    ferry('glide-e', 150, 180, 48, 0, 0.4, 0.9);
+    smallFerry('glide-e', 150, 72, 0, 0.4, 0.9);
     ground('floe-a', 220);
-    ferry('glide-f', 144, 176, 52, 30, 1.9, 1.0);
+    smallFerry('glide-f', 144, 70, 30, 1.9, 1.0);
     ground('floe-b', 220);
-    ferry('glide-g', 158, 184, 44, 0, 2.6, 0.8);
+    smallFerry('glide-g', 158, 74, 0, 2.6, 0.8);
     const landing = ground('landing', 380);
     marks.ember.push(landing + 200);
     marks.checks.push(landing + 20);
     const slotC = tunnel('ceil-c', 240);
     const smoke = ground('smoke', 600);
+    marks.skim.push(smoke + 280);
     hole(40);
     deck('crown-lip', 64, 150);
     hole(34);
@@ -1016,7 +1036,7 @@ function buildStage(tier) {
     signs.push({
       x: firstGlide.homeX + 40,
       text: 'Drift',
-      once: 'This span slides. Step on when it reaches you. It carries you across.',
+      once: 'This small span slides. Hop on when it is close, ride it over, then hop off.',
     });
   }
   if (marks.low) {
@@ -1077,6 +1097,14 @@ const ZONE_TITLES = {
 // The text never says what the secret is.
 const STORY = {
   tagline: 'Keep the page shut. Keep the relay moving.',
+  // The reset button. Forgetting clears this browser's save and reloads. The line shows on the map after the reload.
+  forget: {
+    title: 'Forget your past?',
+    body: 'You lose touch with your Hemi power and start again from scratch. Your clears, gear, armor, and best scores on this device are gone. Orami is locked again.',
+    yes: 'Forget',
+    no: 'Keep my past',
+    after: 'The page is blank. The seal is new. Begin again.',
+  },
   intro: [
     'You carry one page. A secret, sealed on the Hemi chain.',
     'Only you can read it. The Hemi block stamp is the seal.',
@@ -1639,6 +1667,7 @@ function startGame(zoneId) {
 }
 
 const CLEAR_KEY = 'relay-zone-clears';
+// Device clears: { hemi, wart, cart, gale, crown }. Wallet board uses the same stage keys under each address.
 const BEST_KEY = 'relay-zone-best';
 const SCORE_KEY = 'relay-zone-scores';
 const MARK_LOSS = 500;
@@ -1655,67 +1684,178 @@ function shortAddr(addr) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-function bestScore() {
-  const n = Number(localStorage.getItem(BEST_KEY) || 0);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+function heroName(hero) {
+  if (hero === 'orami') return 'Orami';
+  if (hero === 'hemigo') return 'Hemigo';
+  return '';
+}
+
+function scoreLabel(score, hero) {
+  const name = heroName(hero);
+  return name ? `${score} ${name}` : String(score);
+}
+
+function runHero() {
+  const id = state?.hero?.id;
+  return id === 'orami' || id === 'hemigo' ? id : '';
+}
+
+function readMark(value) {
+  const raw = value && typeof value === 'object' && !Array.isArray(value) ? value.score : value;
+  const score = Math.round(Number(raw));
+  if (!Number.isFinite(score) || score <= 0) return null;
+  const hero = value?.hero === 'orami' || value?.hero === 'hemigo' ? value.hero : '';
+  return { score, hero };
+}
+
+function betterMark(current, next) {
+  if (!current) return next;
+  if (!next) return current;
+  if (next.score > current.score) return next;
+  if (current.score > next.score) return current;
+  return current.hero ? current : next;
+}
+
+function readStageMap(value) {
+  const stages = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return stages;
+  for (const zone of ZONE_ORDER) {
+    const mark = readMark(value[zone]);
+    if (mark) stages[zone] = mark;
+  }
+  return stages;
+}
+
+function readStageBests() {
+  try {
+    return readStageMap(JSON.parse(localStorage.getItem(BEST_KEY) || '{}'));
+  } catch {
+    return {};
+  }
+}
+
+function stageBestMark(zone) {
+  return readStageBests()[zone] || null;
+}
+
+function stageBestScore(zone) {
+  return stageBestMark(zone)?.score || 0;
 }
 
 function readScores() {
   try {
     const raw = JSON.parse(localStorage.getItem(SCORE_KEY) || '{}');
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-    return raw;
+    const out = {};
+    for (const [addr, value] of Object.entries(raw)) {
+      const hex = String(addr).toLowerCase();
+      if (!/^0x[0-9a-f]{40}$/.test(hex)) continue;
+      const stages = readStageMap(value);
+      if (Object.keys(stages).length) out[hex] = stages;
+    }
+    return out;
   } catch {
     return {};
   }
 }
 
-function walletBest(addr) {
-  const n = Number(readScores()[addr] || 0);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+function walletBest(addr, zone) {
+  return readScores()[addr]?.[zone]?.score || 0;
 }
 
 let boardScores = {};
 
+function boardStageMark(addr, zone) {
+  return boardScores[addr]?.[zone] || null;
+}
+
 function mergedScores() {
   const scores = {};
-  const take = (addr, n) => {
+  const take = (addr, value) => {
     const hex = String(addr || '').toLowerCase();
-    const score = Number(n);
-    if (!/^0x[0-9a-f]{40}$/.test(hex) || !Number.isFinite(score) || score <= 0) return;
-    scores[hex] = Math.max(scores[hex] || 0, score);
+    const stages = readStageMap(value);
+    if (!/^0x[0-9a-f]{40}$/.test(hex) || !Object.keys(stages).length) return;
+    const prev = scores[hex] || {};
+    for (const [zone, mark] of Object.entries(stages)) {
+      prev[zone] = betterMark(prev[zone], mark);
+    }
+    scores[hex] = prev;
   };
-  for (const [addr, n] of Object.entries(readScores())) take(addr, n);
-  for (const [addr, n] of Object.entries(boardScores)) take(addr, n);
+  for (const [addr, stages] of Object.entries(readScores())) take(addr, stages);
+  for (const [addr, stages] of Object.entries(boardScores)) take(addr, stages);
   return scores;
 }
 
-function noteWalletBest(score) {
+// The mark on a map card: this browser's clear, or the connected wallet's best on that stage.
+function shownStageBest(zone) {
+  let mark = stageBestMark(zone);
   const addr = connectedAddress();
-  if (!addr || !(score > 0) || score <= walletBest(addr)) return;
-  const scores = readScores();
-  scores[addr] = score;
-  localStorage.setItem(SCORE_KEY, JSON.stringify(scores));
-  paintBest();
-  if (!qs.get('sim')) pushBoard(addr, score);
+  if (addr) {
+    mark = betterMark(mark, readScores()[addr]?.[zone]);
+    mark = betterMark(mark, boardStageMark(addr, zone));
+  }
+  return mark;
 }
 
-function noteBest(score) {
-  if (score > bestScore()) localStorage.setItem(BEST_KEY, String(score));
-  noteWalletBest(score);
+function noteWalletBest(score, zone, hero) {
+  const stage = zone || state?.zone;
+  if (!ZONE_TITLES[stage]) return;
+  const addr = connectedAddress();
+  const n = Math.round(Number(score));
+  if (!addr || !(n > 0) || n <= walletBest(addr, stage)) return;
+  const who = hero === 'orami' || hero === 'hemigo' ? hero : runHero();
+  const scores = readScores();
+  const prev = readStageMap(scores[addr]);
+  prev[stage] = { score: n, hero: who };
+  scores[addr] = prev;
+  localStorage.setItem(SCORE_KEY, JSON.stringify(scores));
+  paintBest();
+  if (!qs.get('sim')) pushBoard(addr, stage, n, who);
+}
+
+function noteBest(score, zone) {
+  const stage = zone || state?.zone;
+  const n = Math.round(Number(score));
+  if (!ZONE_TITLES[stage] || !(n > 0)) return;
+  if (n > stageBestScore(stage)) {
+    const bests = readStageBests();
+    bests[stage] = { score: n, hero: runHero() };
+    localStorage.setItem(BEST_KEY, JSON.stringify(bests));
+  }
+  noteWalletBest(n, stage);
+}
+
+function stageRows(zone) {
+  return Object.entries(mergedScores())
+    .map(([addr, stages]) => ({
+      addr,
+      score: stages[zone]?.score || 0,
+      hero: stages[zone]?.hero || '',
+    }))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.addr.localeCompare(b.addr))
+    .slice(0, 8);
+}
+
+function paintZoneBests() {
+  for (const zone of ZONE_ORDER) {
+    const node = document.querySelector(`#start-${zone} .zone-best`);
+    if (!node) continue;
+    const mark = shownStageBest(zone);
+    node.hidden = !mark;
+    node.textContent = mark ? `Best ${scoreLabel(mark.score, mark.hero)}` : '';
+  }
 }
 
 function paintBest() {
+  paintZoneBests();
   if (!el.best) return;
   const scores = mergedScores();
-  const rows = Object.entries(scores)
-    .map(([addr, score]) => ({ addr, score }))
-    .sort((a, b) => b.score - a.score || a.addr.localeCompare(b.addr))
-    .slice(0, 12);
   const mine = connectedAddress();
-  const anon = bestScore();
+  const device = ZONE_ORDER.filter((zone) => stageBestScore(zone) > 0);
+  const listed = ZONE_ORDER.filter((zone) => stageRows(zone).length);
   el.best.replaceChildren();
-  if (!rows.length && !(anon && !mine)) {
+  if (!listed.length && !(device.length && !mine)) {
     if (!mine) {
       el.best.hidden = true;
       return;
@@ -1727,29 +1867,49 @@ function paintBest() {
     return;
   }
   el.best.hidden = false;
-  if (!mine && anon) {
-    const line = document.createElement('p');
-    line.textContent = `Best clear ${anon}`;
-    el.best.appendChild(line);
-  } else if (mine && !scores[mine]) {
+  if (!mine) {
+    for (const zone of device) {
+      const mark = stageBestMark(zone);
+      const line = document.createElement('p');
+      line.textContent = `Best on ${ZONE_TITLES[zone]} ${scoreLabel(mark.score, mark.hero)}`;
+      el.best.appendChild(line);
+    }
+  } else if (!scores[mine]) {
     const line = document.createElement('p');
     line.textContent = `No score yet · ${shortAddr(mine)}`;
     el.best.appendChild(line);
   }
-  if (!rows.length) return;
-  const list = document.createElement('ol');
-  list.className = 'best-list';
-  rows.forEach((row, index) => {
-    const li = document.createElement('li');
-    if (row.addr === mine) li.className = 'is-mine';
-    const who = document.createElement('span');
-    who.textContent = `${index + 1}  ${shortAddr(row.addr)}`;
-    const pts = document.createElement('span');
-    pts.textContent = String(row.score);
-    li.append(who, pts);
-    list.appendChild(li);
-  });
-  el.best.appendChild(list);
+  for (const zone of listed) {
+    const head = document.createElement('p');
+    head.className = 'best-stage';
+    head.textContent = ZONE_TITLES[zone];
+    el.best.appendChild(head);
+    const list = document.createElement('ol');
+    list.className = 'best-list';
+    stageRows(zone).forEach((row, index) => {
+      const li = document.createElement('li');
+      if (row.addr === mine) li.className = 'is-mine';
+      const who = document.createElement('span');
+      who.textContent = `${index + 1}  ${shortAddr(row.addr)}`;
+      const pts = document.createElement('span');
+      pts.textContent = scoreLabel(row.score, row.hero);
+      li.append(who, pts);
+      list.appendChild(li);
+    });
+    el.best.appendChild(list);
+  }
+}
+
+function takeBoard(rows) {
+  const next = {};
+  for (const row of rows || []) {
+    const addr = String(row?.address || '').toLowerCase();
+    const stages = readStageMap(row?.stages);
+    if (!/^0x[0-9a-f]{40}$/.test(addr) || !Object.keys(stages).length) continue;
+    next[addr] = stages;
+  }
+  boardScores = next;
+  paintBest();
 }
 
 async function pullBoard() {
@@ -1757,26 +1917,20 @@ async function pullBoard() {
     const res = await fetch('/api/scores', { cache: 'no-store' });
     if (!res.ok) return;
     const body = await res.json();
-    const next = {};
-    for (const row of body.scores || []) next[row.address] = row.score;
-    boardScores = next;
-    paintBest();
+    takeBoard(body.scores);
   } catch {
     /* The list still shows scores saved in this browser. */
   }
 }
 
-function pushBoard(addr, score) {
+function pushBoard(addr, zone, score, hero) {
   fetch('/api/scores', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ address: addr, score }),
+    body: JSON.stringify({ address: addr, zone, score, hero }),
   }).then((res) => (res.ok ? res.json() : null)).then((body) => {
     if (!body?.scores) return;
-    const next = {};
-    for (const row of body.scores) next[row.address] = row.score;
-    boardScores = next;
-    paintBest();
+    takeBoard(body.scores);
   }).catch(() => {});
 }
 
@@ -1882,13 +2036,19 @@ function addScore(n, x, y) {
   state.score += n;
   state.pops.push({ x, y: y - 8, text: `+${n}`, life: 0.7 });
   if (state.pops.length > 14) state.pops.shift();
+  noteWalletBest(state.score, state.zone);
   paintScore();
-  noteWalletBest(state.score);
 }
 
 function paintScore() {
   if (!state) return;
   if (el.score) el.score.textContent = String(state.score);
+  if (el.stageBest) {
+    const mark = shownStageBest(state.zone);
+    const best = mark?.score || 0;
+    el.stageBest.hidden = !(best > 0);
+    el.stageBest.textContent = best > 0 ? `best ${scoreLabel(best, mark.hero)}` : '';
+  }
   if (el.goal) el.goal.textContent = goalLine();
 }
 
@@ -1924,6 +2084,58 @@ function renderZonePicks() {
     if (mark) mark.hidden = !done.has(id);
   }
   refreshHeroLock();
+}
+
+// Reset. Every key this game saves lives under 'relay-zone-'. Only those are cleared, only in this browser.
+// The online high-score list (/api/scores) is never touched. The reload gives a clean first-run state.
+const RESET_NOTE_KEY = 'relay-zone-reset-note';
+const SAVE_KEYS = [HERO_KEY, WEAR_KEY, GEAR_KEY, ORAMI_KEY, CLEAR_KEY, BEST_KEY, SCORE_KEY];
+let resetFrom = null;
+
+function forgetEverything() {
+  try {
+    for (const key of SAVE_KEYS) localStorage.removeItem(key);
+    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('relay-zone-')) localStorage.removeItem(key);
+    }
+  } catch { /* storage is blocked, so there is nothing saved to clear */ }
+  try { sessionStorage.setItem(RESET_NOTE_KEY, '1'); } catch { /* the reload still starts fresh */ }
+}
+
+function resetOpen() {
+  return !!el.resetBox && !el.resetBox.hidden;
+}
+
+function openReset() {
+  if (!el.resetBox) return;
+  resetFrom = document.activeElement;
+  el.resetBox.hidden = false;
+  el.resetCancel?.focus();
+}
+
+function closeReset() {
+  if (!el.resetBox) return;
+  el.resetBox.hidden = true;
+  if (resetFrom && resetFrom.focus) resetFrom.focus();
+  resetFrom = null;
+}
+
+function confirmReset() {
+  forgetEverything();
+  location.reload();
+}
+
+function paintResetNote() {
+  let flagged = false;
+  try {
+    flagged = sessionStorage.getItem(RESET_NOTE_KEY) === '1';
+    sessionStorage.removeItem(RESET_NOTE_KEY);
+  } catch { flagged = false; }
+  if (flagged && el.selectNote) {
+    el.selectNote.hidden = false;
+    el.selectNote.textContent = STORY.forget.after;
+  }
 }
 
 function showSelect(note) {
@@ -3255,12 +3467,33 @@ function driveBot(dt) {
   const ledge = ledgeAbove(state.inv.spark ? 150 : state.hero.single + 6);
   const ferry = gap ? approachingFerry(foot, probe) : null;
   const ferryHere = ferry && probe >= ferry.x + 4 && probe <= ferry.x + ferry.w - 4;
-  if (gap && ferry && !ferryHere) {
+  // Riding a small bridge: hop as soon as a lip is one short hop ahead.
+  const aboard = state.level.platforms.find((plat) => plat.slide && Math.abs(foot - plat.y) <= 4 && mid >= plat.x - 8 && mid <= plat.x + plat.w + 8);
+  const lipAhead = aboard && state.level.platforms.some((plat) => (
+    plat.oneWay && !plat.slide && !plat.loft && Math.abs(plat.y - foot) <= 74
+    && plat.x - (player.x + player.w) < 38 && plat.x + plat.w > player.x + player.w + 4 && plat.x > player.x
+  ));
+  if (gap && lipAhead) {
+    input.right = true;
+    input.left = false;
+    requestJump();
+  } else if (gap && ferry && !ferryHere) {
     input.right = false;
     input.left = false;
   } else if (gap && ferryHere && ferry.y <= foot - 12) requestJump();
   else if (gap && !ferry) requestJump();
-  else if (ledge) requestJump();
+  else if (ledge && !ledge.slide) requestJump();
+  // Small bridges: ride near the middle of the deck, and brake in the air so a jump onto it lands mid-deck.
+  if (aboard && !lipAhead) {
+    const edge = aboard.x + aboard.w;
+    input.right = mid < edge - 26;
+    input.left = mid > edge - 10;
+  }
+  if (!player.onGround && player.vy > 0) {
+    const below = state.level.platforms.find((plat) => (
+      plat.slide && foot <= plat.y + 3 && foot >= plat.y - 60 && mid >= plat.x + 6 && mid <= plat.x + plat.w - 6));
+    if (below && mid > below.x + below.w * 0.5) input.right = false;
+  }
   state.wantDouble = !!(ledge && state.inv.spark && foot - ledge.y > state.hero.single + 4);
 
   for (const enemy of state.level.enemies) {
@@ -3345,9 +3578,10 @@ function win() {
   if (!state || state.mode === 'win') return;
   const zone = state.zone;
   state.mode = 'win';
+  const prev = stageBestScore(zone);
   const bonus = Math.max(120, 1000 - Math.floor((state.time * 8) / (state.level.stretch || 1)));
   state.score += bonus;
-  noteBest(state.score);
+  noteBest(state.score, zone);
   const wasOpen = oramiUnlocked();
   markClear(zone);
   if (qs.get('sim') && qs.get('sim') !== 'return') {
@@ -3360,7 +3594,13 @@ function win() {
     : state.stamp?.block
       ? ` Started on Hemi #${state.stamp.block}.`
       : '';
-  const scored = ` Score ${state.score}.${pageBit}`;
+  const title = clearedTitle(zone);
+  const held = stageBestMark(zone);
+  const who = heroName(runHero());
+  const holder = heroName(held?.hero);
+  const scored = (state.score > prev
+    ? ` New best on ${title}: ${state.score}${who ? `, ${who}` : ''}.`
+    : ` Score ${state.score}. Best on ${title} is ${held?.score || 0}${holder ? `, ${holder}` : ''}.`) + pageBit;
   const ahead = nextStageName(zone);
   const finale = oramiUnlocked() && (!wasOpen || zone === 'crown');
   const tale = finale ? (STORY.win[state.hero.id] || STORY.win.hemigo) : STORY.clear[zone];
@@ -4823,6 +5063,20 @@ function boot() {
   }
   renderZonePicks();
   paintBest();
+  const ask = STORY.forget;
+  const askTitle = document.getElementById('reset-title');
+  const askBody = document.getElementById('reset-body');
+  if (askTitle) askTitle.textContent = ask.title;
+  if (askBody) askBody.textContent = ask.body;
+  if (el.resetYes) el.resetYes.textContent = ask.yes;
+  if (el.resetCancel) el.resetCancel.textContent = ask.no;
+  el.resetOpen?.addEventListener('click', openReset);
+  el.resetCancel?.addEventListener('click', closeReset);
+  el.resetYes?.addEventListener('click', confirmReset);
+  el.resetBox?.addEventListener('click', (event) => {
+    if (event.target === el.resetBox) closeReset();
+  });
+  paintResetNote();
   el.again.addEventListener('click', () => startGame(state?.zone || 'hemi'));
   el.quit.addEventListener('click', showSelect);
   el.bagOpen.addEventListener('click', () => toggleBag());
@@ -4877,6 +5131,18 @@ function boot() {
 
   window.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    if (resetOpen()) {
+      // The confirm box owns the keyboard: Esc keeps the past, Tab stays on its two buttons, Enter and Space press the focused one.
+      if (key === 'escape') {
+        event.preventDefault();
+        closeReset();
+      } else if (key === 'tab') {
+        event.preventDefault();
+        const next = document.activeElement === el.resetCancel ? el.resetYes : el.resetCancel;
+        next?.focus();
+      }
+      return;
+    }
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key) || event.code === 'Space' || key === 'control') {
       event.preventDefault();
     }
@@ -4951,7 +5217,7 @@ function boot() {
   requestAnimationFrame(frame);
   window.addEventListener('relay-wallet', () => {
     paintBest();
-    if (state && (state.mode === 'play' || state.mode === 'win')) noteWalletBest(state.score);
+    if (state && (state.mode === 'play' || state.mode === 'win')) noteWalletBest(state.score, state.zone);
   });
 
   if (qs.get('shot') === 'zone') startGame(qs.get('zone') || 'hemi');
@@ -5093,12 +5359,15 @@ function runScoreTest() {
   startGame('hemi');
   const player = state.player;
   addScore(800, player.x, player.y);
-  const banked = walletBest(addr);
+  const banked = walletBest(addr, 'hemi');
+  const cardBanked = document.querySelector('#start-hemi .zone-best')?.textContent === 'Best 800 Hemigo';
+  const hudBanked = el.stageBest?.textContent === 'best 800 Hemigo';
   player.hp = 1;
   player.iframes = 0;
   hurt(player.x + 80);
   const afterDeath = state.score;
-  const kept = walletBest(addr);
+  const kept = walletBest(addr, 'hemi');
+  const hudKept = el.stageBest?.textContent === 'best 800 Hemigo';
   const popped = state.pops.some((pop) => pop.text === '-500');
   const toastText = el.toast.textContent || '';
   const atCheckpoint = player.hp === state.maxHp
@@ -5112,40 +5381,63 @@ function runScoreTest() {
   update(1 / 60);
   const afterFall = state.score;
   window.relayWallet = { address: addr, chainId: 1 };
-  noteWalletBest(5000);
-  const wrongChain = walletBest(addr);
+  noteWalletBest(5000, 'hemi');
+  const wrongChain = walletBest(addr, 'hemi');
   state.score = 900;
   window.relayWallet = { address: addr, chainId: RELAY_CHAIN_ID };
   window.dispatchEvent(new CustomEvent('relay-wallet'));
-  const fromEvent = walletBest(addr);
+  const fromEvent = walletBest(addr, 'hemi');
   player.hp = 1;
   player.iframes = 0;
   hurt(player.x + 80);
   const secondDeath = state.score;
-  const stillHigh = walletBest(addr);
+  const stillHigh = walletBest(addr, 'hemi');
   window.relayWallet = { address: other, chainId: RELAY_CHAIN_ID };
-  noteWalletBest(1200);
-  const otherBest = walletBest(other);
-  const firstStill = walletBest(addr);
+  noteWalletBest(1200, 'hemi');
+  const otherBest = walletBest(other, 'hemi');
+  const firstStill = walletBest(addr, 'hemi');
   window.relayWallet = { address: addr, chainId: RELAY_CHAIN_ID };
-  noteWalletBest(-40);
-  noteWalletBest(0);
-  const notNegative = walletBest(addr);
+  noteWalletBest(-40, 'hemi');
+  noteWalletBest(0, 'hemi');
+  const notNegative = walletBest(addr, 'hemi');
+  noteWalletBest(5000, 'wart');
+  const split = walletBest(addr, 'hemi') === 900
+    && walletBest(addr, 'wart') === 5000
+    && walletBest(other, 'hemi') === 1200
+    && walletBest(other, 'wart') === 0;
+  const wartCard = document.querySelector('#start-wart .zone-best')?.textContent === 'Best 5000 Hemigo';
+  const hemiCard = document.querySelector('#start-hemi .zone-best')?.textContent === 'Best 900 Hemigo';
+  noteWalletBest(600, 'cart', 'orami');
+  noteWalletBest(400, 'hemi', 'orami');
+  const oramiCart = walletBest(addr, 'cart') === 600 && readScores()[addr].cart.hero === 'orami';
+  const heroKept = walletBest(addr, 'hemi') === 900 && readScores()[addr].hemi.hero === 'hemigo';
+  const cartCard = document.querySelector('#start-cart .zone-best')?.textContent === 'Best 600 Orami';
   paintBest();
   const mineRow = el.best.querySelector('.is-mine')?.textContent || '';
   const boardText = el.best.textContent || '';
-  const mineShown = mineRow.includes(shortAddr(addr)) && mineRow.includes('900');
-  const otherShown = boardText.includes(shortAddr(other)) && boardText.indexOf('1200') < boardText.indexOf('900');
+  const mineShown = mineRow.includes(shortAddr(addr)) && mineRow.includes('900') && mineRow.includes('Hemigo');
+  const otherShown = boardText.includes('Hemi Rise')
+    && boardText.includes('Hemi Span')
+    && boardText.includes(shortAddr(other))
+    && boardText.indexOf('1200') < boardText.indexOf('900');
   window.relayWallet = { address: null, chainId: null };
   noteBest(250);
+  noteBest(700, 'gale');
   paintBest();
   const anonLine = el.best.textContent;
-  const anon = bestScore();
+  const anon = stageBestScore('hemi') === 250
+    && stageBestScore('gale') === 700
+    && stageBestScore('wart') === 0;
+  const riseCard = document.querySelector('#start-hemi .zone-best')?.textContent === 'Best 250 Hemigo';
+  const galeCard = document.querySelector('#start-gale .zone-best')?.textContent === 'Best 700 Hemigo';
   const checks = {
     emptyLine: emptyLine === `No score yet · ${shortAddr(addr)}`,
     mineShown,
     otherShown,
     banked: banked === 800,
+    cardBanked,
+    hudBanked,
+    hudKept,
     afterDeath: afterDeath === 300,
     kept: kept === 800,
     popped,
@@ -5158,10 +5450,19 @@ function runScoreTest() {
     stillHigh: stillHigh === 900,
     otherBest: otherBest === 1200,
     firstStill: firstStill === 900,
-    anon: anon === 250,
-    anonLine: anonLine.includes('Best clear 250')
+    split,
+    wartCard,
+    hemiCard,
+    oramiCart,
+    heroKept,
+    cartCard,
+    anon,
+    riseCard,
+    galeCard,
+    anonLine: anonLine.includes('Best on Hemi Rise 250 Hemigo')
+      && anonLine.includes('Best on Hemi Gale 700 Hemigo')
       && anonLine.indexOf(shortAddr(other)) < anonLine.indexOf(shortAddr(addr)),
-    notNegative: notNegative === 900 && walletBest(addr) === 900,
+    notNegative: notNegative === 900 && walletBest(addr, 'hemi') === 900,
   };
   const ok = Object.values(checks).every(Boolean);
   state.scoreReport = checks;
@@ -5339,10 +5640,12 @@ function ferryReaches(level) {
   return level.platforms.filter((plat) => plat.slide).every((plat) => {
     const minX = plat.homeX - plat.slide;
     const maxR = plat.homeX + plat.slide + plat.w;
+    // A small bridge may stop a short hop short of a lip. Up to 24 units counts as within reach.
+    const reach = plat.w < 100 ? 24 : -8;
     const meets = (lip, side) => {
       const overlap = side === 'left'
-        ? lip.x + lip.w > minX + 8 && lip.x < plat.homeX
-        : lip.x < maxR - 8 && lip.x + lip.w > plat.homeX + plat.w;
+        ? lip.x + lip.w > minX - reach && lip.x < plat.homeX
+        : lip.x < maxR + reach && lip.x + lip.w > plat.homeX + plat.w;
       return overlap && Math.abs(lip.y - plat.y) <= 74;
     };
     return lips.some((lip) => meets(lip, 'left')) && lips.some((lip) => meets(lip, 'right'));
@@ -5381,12 +5684,12 @@ function runMapTest() {
   const hopCount = jumps.map((list) => list.length);
   const hopped = hopCount[0] >= 6 && hopCount[1] >= 10 && hopCount[2] >= 8
     && hopCount[3] >= 8 && hopCount[4] >= 10;
-  const roster = levels.map((level) => level.enemies.length).join() === '6,8,8,9,12';
+  const roster = levels.map((level) => level.enemies.length).join() === '7,9,9,11,14';
   const shaftCount = shafts.join() === '2,3,4,5,6';
   const flyers = levels.map((level) => level.enemies.filter((enemy) => enemy.kind === 'flyer'));
   const armed = flyers[2].length === 2 && flyers[2].every((enemy) => !enemy.shoot)
-    && flyers[3].length === 3 && flyers[3].every((enemy) => enemy.shoot)
-    && flyers[4].length === 5 && flyers[4].every((enemy) => enemy.shoot);
+    && flyers[3].length === 4 && flyers[3].every((enemy) => enemy.shoot)
+    && flyers[4].length === 6 && flyers[4].every((enemy) => enemy.shoot);
   const different = jumps.map((list) => list.map((jump) => `${jump.gap}:${jump.rise}`).join('|'))
     .every((sig, index, all) => all.indexOf(sig) === index);
   const checks = {
@@ -5666,8 +5969,8 @@ function runGaleTest() {
   const galeFlyers = flyersOf(4);
   const crownFlyers = flyersOf(5);
   const armed = early.length === 2 && early.every((enemy) => !enemy.shoot)
-    && galeFlyers.length === 3 && galeFlyers.every((enemy) => enemy.shoot)
-    && crownFlyers.length === 5 && crownFlyers.every((enemy) => enemy.shoot);
+    && galeFlyers.length === 4 && galeFlyers.every((enemy) => enemy.shoot)
+    && crownFlyers.length === 6 && crownFlyers.every((enemy) => enemy.shoot);
   startGame('gale');
   const slides = state.level.platforms.filter((plat) => plat.slide);
   const x0 = slides[0]?.x;
