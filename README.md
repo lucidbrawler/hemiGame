@@ -4,6 +4,24 @@ Five-stage Hemi side runner. The run reads the public Hemi mainnet block when yo
 
 Space jumps. Hold Ctrl, S, or Down to crouch. E attacks. Hold Q to guard. The mouse wheel cycles weapons. F confirms the relay. I opens armor.
 
+## Story
+
+The hero carries one encrypted page, a secret sealed on the Hemi chain. The Librarians catalogue every page in every zone and want this one opened. The Hemi block stamp is the seal, and the page stays safe while the hero keeps moving and the relay stays confirmed. Four NPCs stand along the stages: Courier Tam, Archivist Quill, Apprentice Nib, and Sentinel Ward. Walk up to one to hear a line. The Shard (even block) bargains and the Hex (odd block) tricks. The secret itself is never shown. All story text is in the `STORY` object in `public/game.js`.
+
+## Stage lengths and routes
+
+Each stage is longer than the last, measured from the start to the exit door (game units). The climb, gate, and arena at the end are the same size on every stage, so the extra length is all route. Mobs, pits, pads, bridges, roofs, and checkpoints grow with it.
+
+| Stage | Old | New | Route |
+| --- | --- | --- | --- |
+| Hemi Rise | 4906 | 5887 (+20%) | Flat meadow. A lone ditch, a widening stutter of three, one-hop steps to a secret canopy over the stutter. |
+| Hemi Span | 6508 | 8460 (+30%) | Pads and terraces. A rising terrace, a causeway of pads over open air, a falling terrace. Secret skyway over the causeway (needs the spark). |
+| Hemi Deep | 7788 | 10903 (+40%) | Roofs and roots. Three low roofs, root pads in pairs and trios, long basins. Secret canopy over the basin (needs the spark). |
+| Hemi Gale | 9460 | 14190 (+50%) | Ferries and ice. Six sliding bridges, a wind row of two ferries between isles, frozen floes, a long skimmer lane. Secret skyway over the wind row (needs the spark). |
+| Hemi Crown | 12034 | 20458 (+70%) | The high step, then peaks. Ash dunes, a peak climb to a summit and back down, a run of three ferries, a long slag walk. Two secret skyways (need the spark). |
+
+The lengths come from `STAGE_OLD_EXIT` and `STAGE_GROWTH` in `public/game.js`. `buildStage` ends the route where the climb begins, so the exit lands on the target. The secret paths are floating decks marked `loft`. They never carry items, and every stage can be cleared without them. The time bonus is scaled by the stage length.
+
 ## Credits
 
 - Character, armor, weapon, and stage art was generated with Grok.

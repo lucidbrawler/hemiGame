@@ -15,6 +15,8 @@ export const prerender = true;
     <div class="select-wrap">
       <p class="eyebrow" id="zone-count">Five Hemi stages</p>
       <h1>Pick a map</h1>
+      <p class="eyebrow" id="story-tagline" hidden></p>
+      <p class="lede" id="story-intro" hidden></p>
       <p class="lede">
         Pick Hemigo or Orami, then pick a map. Orami stays locked until all five rises are clear.
         Space jumps. Hold Ctrl or Down to crouch. E swings, chops, or fires.
@@ -42,27 +44,27 @@ export const prerender = true;
         <button type="button" id="start-hemi" class="zone-pick hemi">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Rise</span>
-          <span class="zone-blurb">Open grass. No armor and no spark. Two steps, and one hop clears each. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
+          <span class="zone-blurb">Open grass. No armor and no spark. The ditches change width as you go, then two steps, and one hop clears each. Confirm the relay, then face the boss behind the gate. Health is five Hemi marks.</span>
         </button>
         <button type="button" id="start-wart" class="zone-pick wart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Span</span>
-          <span class="zone-blurb">Warm stone mountains. The Hemi spark is on the hall floor, and the shaft needs that second hop. Chest plates are here too. No helm yet.</span>
+          <span class="zone-blurb">Warm stone mountains. The pads change height as you go. The Hemi spark is on the floor before the shaft, and the shaft needs that second hop. Chest plates are here too. No helm yet.</span>
         </button>
         <button type="button" id="start-cart" class="zone-pick cart">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Deep</span>
-          <span class="zone-blurb">Jungle canopy, a low ceiling, and a wisp. No new armor here. Gear you already picked up comes with you.</span>
+          <span class="zone-blurb">Jungle canopy. A low roof, then another, and the floor keeps changing between them. A wisp waits near the gate. No new armor here. Gear you already picked up comes with you.</span>
         </button>
         <button type="button" id="start-gale" class="zone-pick gale">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Gale</span>
-          <span class="zone-blurb">Icy winter tundra. Sliding spans, a gold helm on the ground, and skimmers that fire down on a slant.</span>
+          <span class="zone-blurb">Icy winter tundra. Sliding spans of different lengths, shelves that change height, a gold helm on the ground, and skimmers that fire down on a slant.</span>
         </button>
         <button type="button" id="start-crown" class="zone-pick crown">
           <span class="zone-kicker">Hemi <span class="zone-clear" hidden>Clear</span></span>
           <span class="zone-title">Hemi Crown</span>
-          <span class="zone-blurb">Volcanic mountains. The tallest shaft, a blue helm on the ground, and a boss that plays the same two shapes a little faster. Skimmers keep firing on the diagonal.</span>
+          <span class="zone-blurb">Volcanic mountains. Pads, a bridge, the spark, a low roof, and a high step, then the peak changes again. A blue helm is on the ground. Skimmers keep firing on the diagonal.</span>
         </button>
       </div>
       <div class="pilot-card">
@@ -115,7 +117,7 @@ export const prerender = true;
       <div id="select-chips" class="chips" aria-live="polite"></div>
       <div id="best-score" class="best-score" hidden></div>
       <p class="fine">
-        Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is harder, and the ground changes: short hops, then pads, a crouch, sliding bridges, and a high step. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
+        Grass, warm mountains, jungle, icy tundra, then volcanic peaks. Each rise is longer than the last, and the ground keeps changing as you cross it: short hops, then pads, a crouch, sliding bridges, and a high step. Weapons and armor you pick up stay with you, and that piece is not on the ground again.
         The glowing page in front of you is stamped with the public Hemi block from the moment you press start.
         An even block puts a Shard just behind the gate. An odd block puts a Hex there.
         The boss fires as you approach the gate. One shot, then two spaced shots, then a longer rest. It chases when it is hurt or you are down to two marks. Losing all five marks sends you back to the last checkpoint and costs 500 points. Librarians pace, hop, and spit acid. On Deep, Gale, and Crown that acid sits on the ground for a few seconds.

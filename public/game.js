@@ -3,7 +3,9 @@
  * Five Hemi stages: grass, mountains, jungle, winter tundra, volcanic peaks.
  * Rise has no armor and no spark. Its relay is two steps, one hop each.
  * Span has the spark and the chest plates. Gale and Crown have the helms.
- * The ground changes each rise: hops, pads, a low roof, sliding bridges, then a high step.
+ * The ground changes each rise, and it keeps changing inside the rise.
+ * Rise is short hops of different widths. Span is pads of different heights.
+ * Deep adds low roofs. Gale adds sliding bridges. Crown adds a high step, then a different peak.
  * The roof sits on flat ground, with room to stand before the next jump.
  * Later rises leave fights spaced apart. Gale and Crown skimmers fire down on a slant.
  * Space jumps. Hold Ctrl, S, or Down to crouch. E attacks. The mouse wheel cycles owned weapons. Hold Q to guard.
@@ -393,9 +395,32 @@ function placeFlyer(id, x, shoot) {
   };
 }
 
+// Stage length is the distance from the start to the exit door. Each stage grows by a set share over its old length
+// (4906, 6508, 7788, 9460, 12034), so the climb, gate and arena at the end stay the same size and the route absorbs it.
+const STAGE_OLD_EXIT = [0, 4906, 6508, 7788, 9460, 12034];
+const STAGE_GROWTH = [0, 0.2, 0.3, 0.4, 0.5, 0.7];
+
+function stageExit(tier) {
+  return Math.round(STAGE_OLD_EXIT[tier] * (1 + STAGE_GROWTH[tier]));
+}
+
+// Background words repeat along the longer stages: one about every 2600 units.
+function wordSpots(exitX) {
+  const spots = [];
+  for (let x = 1500; x < exitX - 1200; x += 2600) spots.push([x, 755]);
+  return spots;
+}
+
 function buildStage(tier) {
   const platforms = [];
   let cursor = 0;
+  // The climb, the walk to the gate, the arena and the door take 1010 + 300 * tier. The route ends where they begin.
+  const bodyEnd = stageExit(tier) - (1010 + 300 * tier);
+  const fit = () => bodyEnd - cursor;
+  // A secret high path: a floating deck over the route. It never moves the cursor and never holds an item.
+  const over = (id, at, rise, w) => {
+    platforms.push({ id, x: at, y: G - rise, w, h: 16, oneWay: true, kind: 'hemi', loft: true });
+  };
   const ground = (id, w) => {
     const at = cursor;
     platforms.push({ id, x: at, y: G, w, h: 180, oneWay: true, kind: 'hemi' });
@@ -409,7 +434,7 @@ function buildStage(tier) {
     cursor += w;
     return at;
   };
-  const ferry = (id, pit, deckW, travel, rise, phase) => {
+  const ferry = (id, pit, deckW, travel, rise, phase, rate = 0.9) => {
     const left = cursor;
     cursor += pit;
     const home = left - 20;
@@ -426,7 +451,7 @@ function buildStage(tier) {
       kind: 'glide',
       slide: travel,
       phase,
-      rate: 0.9,
+      rate,
       bob: 0,
     });
     return home;
@@ -465,92 +490,381 @@ function buildStage(tier) {
     return { top, topEnd: top.x + top.w };
   };
 
-  const marks = { skim: [] };
+  const marks = { skim: [], checks: [] };
   ground('a', 400);
 
   if (tier === 1) {
+    // Rise: flat meadow. The shape is its ditch rhythm: a lone ditch, a widening stutter of three, then an
+    // alternating narrow/wide ladder. A secret canopy of one-hop steps runs over the stutter.
     hole(40);
-    marks.sword = ground('b', 260) + 90;
+    marks.sword = ground('b', 240) + 80;
     hole(36);
-    const hall = ground('hall', 820);
-    marks.plate = hall + 240;
-    marks.axe = hall + 480;
-    marks.skim.push(hall + 120, hall + 600);
-    marks.lib = [[hall + 200, 70], [hall + 460, 80]];
-  } else if (tier === 2) {
-    hole(58);
-    deck('pad-a', 40, 150);
-    hole(50);
-    deck('pad-b', 28, 140);
-    hole(54);
-    const chest = ground('chest', 420);
-    marks.plates = chest + 150;
-    hole(46);
-    deck('pad-c', 52, 160);
-    hole(42);
-    const hall = ground('hall', 760);
-    marks.sword = hall + 70;
-    marks.plate = hall + 300;
-    marks.axe = hall + 480;
-    marks.spark = hall + 660;
-    marks.skim.push(260, hall + 680);
-    marks.lib = [[hall + 40, 40], [hall + 520, 50]];
-    marks.ember = [chest + 90];
-  } else if (tier === 3) {
-    hole(52);
-    deck('pad-a', 46, 156);
+    const meadow = ground('meadow', 500);
+    marks.plate = meadow + 150;
+    marks.skim.push(meadow + 370);
     hole(44);
-    const approach = ground('approach', 200);
-    const slot = tunnel('ceil', 240);
-    const hall = ground('hall', 1800);
-    marks.low = slot - 28;
-    marks.sword = approach + 80;
-    marks.plate = hall + 1660;
-    marks.axe = hall + 80;
-    marks.spark = hall + 1080;
-    marks.skim.push(270, hall + 1280);
-    marks.lib = [[hall + 860, 50]];
-    marks.ember = [hall + 420];
-  } else if (tier === 4) {
-    ferry('glide-a', 130, 180, 40, 0, 0.25);
-    const far = ground('far', 280);
-    ferry('glide-b', 150, 170, 50, 0, 1.4);
+    const grove = ground('grove', 300);
+    marks.lib = [[grove + 160, 50]];
+    hole(28);
+    const bend = ground('bend', 400);
+    marks.axe = bend + 140;
+    hole(30);
+    const s1 = ground('s1', 200);
+    hole(34);
+    const s2 = ground('s2', 200);
+    hole(38);
+    const s3 = ground('s3', 220);
+    hole(42);
+    const ridge = ground('ridge', 440);
+    marks.lib.push([ridge + 220, 55]);
+    marks.checks.push(ridge + 20);
+    hole(46);
+    const field = ground('field', 520);
+    marks.lib.push([field + 160, 55]);
+    marks.skim.push(field + 380);
+    marks.checks.push(field + 20);
+    hole(32);
+    ground('lip', 420);
+    hole(30);
+    ground('last', fit());
+    over('canopy-1', bend + 250, 52, 110);
+    over('canopy-2', bend + 380, 104, 200);
+    over('canopy-3', s1 + 186, 104, 200);
+    over('canopy-4', s2 + 188, 104, 200);
+    over('canopy-5', s3 + 186, 104, 140);
+  } else if (tier === 2) {
+    // Span: pads and terraces. A rising terrace, a causeway of alternating pads over open air, then a falling terrace.
+    // A secret skyway (spark only) runs over the causeway.
+    hole(48);
+    deck('pad-a', 36, 150);
+    hole(34);
+    deck('pad-b', 58, 130);
+    hole(42);
+    const chest = ground('chest', 480);
+    marks.plates = chest + 80;
+    marks.ember = [chest + 380];
+    hole(40);
+    deck('step-a', 30, 140);
+    hole(30);
+    deck('step-b', 54, 140);
+    hole(30);
+    deck('step-c', 78, 140);
+    hole(48);
+    const bridge = ground('bridge', 260);
+    marks.sword = bridge + 60;
+    marks.lib = [[bridge + 150, 40]];
+    hole(36);
+    deck('pad-e', 32, 150);
+    hole(44);
+    const sparkIsle = ground('sparkisle', 340);
+    marks.axe = sparkIsle + 70;
+    marks.spark = sparkIsle + 240;
+    hole(40);
+    deck('cw-1', 40, 120);
+    hole(36);
+    const c2 = deck('cw-2', 66, 120);
+    hole(36);
+    deck('cw-3', 40, 120);
+    hole(40);
+    const c4 = deck('cw-4', 70, 120);
+    hole(36);
+    deck('cw-5', 44, 120);
+    hole(44);
+    const watch = ground('watch', 300);
+    marks.skim.push(260, watch + 160);
+    hole(46);
+    deck('pad-f', 52, 170);
+    hole(40);
+    const low = ground('low', 380);
+    marks.plate = low + 170;
+    hole(32);
+    deck('pad-g', 48, 140);
+    hole(34);
+    deck('drop-a', 64, 130);
+    hole(30);
+    deck('drop-b', 40, 130);
+    hole(30);
+    deck('drop-c', 20, 130);
+    hole(50);
+    const mid = ground('mid', 520);
+    marks.lib.push([mid + 220, 50]);
+    marks.checks.push(mid + 20);
+    hole(38);
+    deck('pad-h', 44, 150);
+    hole(42);
+    const approach = ground('approach', 440);
+    marks.ember.push(approach + 240);
+    marks.checks.push(approach + 20);
+    hole(28);
+    const last = ground('last', fit());
+    marks.lib.push([last + 220, 50]);
+    over('sky-a', sparkIsle + 250, 104, c2 + 60 - (sparkIsle + 250));
+    over('sky-b', c2 + 100, 104, c4 + 40 - (c2 + 100));
+    over('sky-c', c4 + 80, 104, watch + 120 - (c4 + 80));
+  } else if (tier === 3) {
+    // Deep: roofs and roots. Three low roofs at uneven spacing, pairs and trios of root pads between them,
+    // and a secret canopy (spark only) over the back half.
+    hole(46);
+    deck('pad-a', 42, 160);
+    hole(38);
+    const approach = ground('approach', 240);
+    marks.sword = approach + 70;
+    const slot = tunnel('ceil-a', 250);
+    ground('clear', 440);
+    hole(34);
+    deck('root-a', 36, 150);
+    hole(30);
+    deck('root-b', 58, 130);
+    hole(30);
+    deck('root-c', 34, 130);
+    hole(48);
+    const pocket = ground('pocket', 320);
+    marks.axe = pocket + 90;
+    marks.ember = [pocket + 200];
+    hole(36);
+    const mid = ground('mid', 460);
+    marks.lib = [[mid + 200, 50]];
+    hole(40);
+    deck('hollow-a', 30, 140);
+    hole(34);
+    deck('hollow-b', 52, 140);
+    hole(44);
     const lead = ground('lead', 220);
-    const slot = tunnel('ceil', 240);
-    const hall = ground('hall', 2200);
+    tunnel('ceil-b', 230);
+    ground('after', 420);
+    hole(40);
+    deck('canopy', 50, 160);
+    hole(44);
+    const basin = ground('basin', 560);
+    marks.plate = basin + 150;
+    marks.spark = basin + 420;
+    hole(32);
+    deck('shelf', 28, 170);
+    hole(46);
+    const hush = ground('hush', 400);
+    marks.lib.push([hush + 200, 50]);
+    marks.checks.push(hush + 20);
+    hole(36);
+    deck('vine-a', 46, 140);
+    hole(30);
+    deck('vine-b', 70, 140);
+    hole(40);
+    const grotto = ground('grotto', 260);
+    const slotC = tunnel('ceil-c', 250);
+    const depth = ground('depth', 420);
+    marks.ember.push(depth + 330);
+    hole(50);
+    const stretch = ground('stretch', 680);
+    marks.skim.push(250, stretch + 300);
+    marks.checks.push(stretch + 20);
+    hole(34);
+    deck('spur', 40, 150);
+    hole(42);
+    const lip = ground('lip', 420);
+    marks.checks.push(lip + 20);
+    hole(30);
+    ground('last', fit());
     marks.low = slot - 28;
+    marks.low2 = lead + 160;
+    marks.low3 = slotC - 28;
+    over('canopy-a', basin + 480, 104, 240);
+    over('canopy-b', basin + 760, 104, 240);
+  } else if (tier === 4) {
+    // Gale: ferries and ice. A ferry opens it, a wind row of two more ferries splits two isles, and a lane
+    // of skimmers closes it. A secret skyway (spark only) runs over the wind row.
+    ferry('glide-a', 150, 176, 42, 0, 0.2);
+    const far = ground('far', 320);
+    marks.helm = far + 120;
+    ferry('glide-b', 178, 188, 54, 0, 1.5);
+    const lead = ground('lead', 260);
     marks.sword = lead + 80;
-    marks.helm = far + 100;
-    marks.plate = hall + 2060;
-    marks.axe = hall + 200;
-    marks.spark = hall + 1100;
-    marks.skim.push(hall + 860, hall + 1680);
-    marks.lib = [[hall + 420, 50]];
-    marks.ember = [hall + 1280];
+    const slot = tunnel('ceil', 240);
+    const stand = ground('stand', 380);
+    marks.lib = [[stand + 220, 50]];
+    hole(34);
+    deck('ice-a', 34, 150);
+    hole(30);
+    deck('ice-b', 56, 140);
+    hole(46);
+    const notch = ground('notch', 360);
+    marks.axe = notch + 90;
+    ferry('glide-c', 164, 174, 48, 0, 2.2, 1.12);
+    const cross = ground('cross', 440);
+    marks.spark = cross + 80;
+    marks.ember = [cross + 240];
+    hole(38);
+    deck('ice-c', 48, 160);
+    hole(26);
+    deck('ice-d', 68, 130);
+    hole(52);
+    const basin = ground('basin', 640);
+    marks.plate = basin + 180;
+    const wind = cursor;
+    ferry('glide-e', 130, 170, 44, 0, 0.7, 0.8);
+    const isleA = ground('isle-a', 300);
+    ferry('glide-f', 150, 176, 52, 0, 2.9, 1.0);
+    ground('isle-b', 420);
+    hole(36);
+    deck('ice-e', 40, 160);
+    hole(44);
+    const field = ground('field', 560);
+    marks.skim.push(field + 200);
+    marks.checks.push(field + 20);
+    ferry('glide-d', 134, 170, 40, 0, 0.9, 0.7);
+    const rim = ground('rim', 480);
+    hole(36);
+    ground('floe-1', 400);
+    hole(44);
+    const floe = ground('floe-2', 500);
+    marks.lib.push([floe + 250, 50]);
+    marks.checks.push(floe + 20);
+    hole(32);
+    deck('ice-f', 62, 150);
+    hole(34);
+    deck('ice-g', 44, 140);
+    hole(30);
+    deck('ice-h', 66, 130);
+    hole(48);
+    const ridge = ground('ridge', 560);
+    marks.ember.push(ridge + 210);
+    marks.checks.push(ridge + 20);
+    const slotB = tunnel('ceil-b', 240);
+    const runAt = ground('run', 560);
+    marks.checks.push(runAt + 20);
+    hole(40);
+    deck('ice-i', 50, 150);
+    hole(46);
+    const lane = ground('lane', 1030);
+    marks.skim.push(lane + 300, lane + 700);
+    marks.checks.push(lane + 20);
+    hole(36);
+    const lipAt = ground('lip', 620);
+    marks.checks.push(lipAt + 20);
+    hole(40);
+    ground('tail', fit());
+    marks.low = slot - 28;
+    marks.low2 = slotB - 28;
+    over('sky-a', wind - 120, 104, 370);
+    over('sky-b', wind + 290, 104, 270);
+    over('sky-c', wind + 600, 104, 120);
   } else {
+    // Crown: the high step, then peaks. A peak climb up to a summit and back down, a ferry run of three,
+    // a long slag walk, and two secret skyways (spark only) over the spires and over the ferry run.
     hole(40);
     deck('pad-a', 34, 140);
     hole(36);
     deck('pad-b', 50, 150);
     hole(34);
     const before = ground('before', 220);
+    marks.sword = before + 60;
+    marks.helm = before + 150;
     ferry('glide-a', 140, 190, 44, 0, 0.35);
     const sparkDeck = ground('sparkdeck', 260);
     marks.spark = sparkDeck + 80;
-    const slot = tunnel('ceil', 220);
+    const slot = tunnel('ceil-a', 220);
     ground('stand', 400);
     deck('crown-step', SHAFT, 200);
     hole(24);
     ferry('glide-b', 150, 180, 56, 40, 1.7);
-    const hall = ground('hall', 2400);
+    const lava = ground('lava', 700);
+    marks.axe = lava + 120;
+    marks.skim.push(lava + 360);
+    hole(42);
+    deck('cinder', 46, 160);
+    hole(34);
+    deck('cinder-b', 72, 140);
+    hole(50);
+    ground('ash', 380);
+    ferry('glide-c', 148, 184, 50, 0, 2.1, 1.08);
+    const rim = ground('rim', 320);
+    hole(30);
+    tunnel('ceil-b', 240);
+    ground('duck', 420);
+    hole(44);
+    ground('dune-a', 520);
+    hole(38);
+    const duneB = ground('dune-b', 640);
+    marks.skim.push(duneB + 320);
+    marks.checks.push(duneB + 20);
+    hole(46);
+    ground('dune-c', 460);
+    hole(40);
+    deck('climb-a', 40, 150);
+    hole(30);
+    deck('climb-b', 66, 140);
+    hole(30);
+    deck('climb-c', 90, 150);
+    hole(26);
+    deck('summit', 90, 260);
+    hole(34);
+    deck('fall-a', 62, 140);
+    hole(30);
+    deck('fall-b', 34, 140);
+    hole(40);
+    const vale = ground('vale', 720);
+    marks.lib = [[vale + 250, 50]];
+    marks.checks.push(vale + 20);
+    hole(46);
+    const magma = deck('magma', 58, 150);
+    hole(28);
+    deck('magma-b', 84, 130);
+    hole(54);
+    const brand = ground('brand', 580);
+    marks.ember = [brand + 100];
+    marks.skim.push(brand + 300);
+    hole(36);
+    deck('spire', 40, 170);
+    ferry('glide-d', 136, 176, 44, 20, 0.6, 0.74);
+    const caldera = ground('caldera', 560);
+    hole(48);
+    ground('flow', 360);
+    const run = cursor;
+    ferry('glide-e', 150, 180, 48, 0, 0.4, 0.9);
+    ground('floe-a', 220);
+    ferry('glide-f', 144, 176, 52, 30, 1.9, 1.0);
+    ground('floe-b', 220);
+    ferry('glide-g', 158, 184, 44, 0, 2.6, 0.8);
+    const landing = ground('landing', 380);
+    marks.ember.push(landing + 200);
+    marks.checks.push(landing + 20);
+    const slotC = tunnel('ceil-c', 240);
+    const smoke = ground('smoke', 600);
+    hole(40);
+    deck('crown-lip', 64, 150);
+    hole(34);
+    const basin = ground('basin', 800);
+    marks.plate = basin + 160;
+    marks.lib.push([basin + 420, 50]);
+    hole(38);
+    deck('lastpad', 52, 140);
+    hole(52);
+    const runout = ground('runout', 700);
+    marks.skim.push(runout + 260);
+    hole(40);
+    deck('slag-a', 44, 150);
+    hole(34);
+    deck('slag-b', 70, 150);
+    hole(36);
+    deck('slag-c', 48, 140);
+    hole(44);
+    const plain = ground('plain', 1100);
+    marks.skim.push(plain + 300);
+    marks.lib.push([plain + 620, 55]);
+    marks.checks.push(plain + 20);
+    hole(30);
+    const lipAt = ground('lip', 640);
+    marks.checks.push(lipAt + 20);
+    hole(44);
+    ground('tail', fit());
     marks.low = slot - 28;
-    marks.sword = before + 60;
-    marks.helm = before + 150;
-    marks.plate = hall + 2160;
-    marks.axe = hall + 720;
-    marks.skim.push(hall + 150, hall + 980, hall + 1760);
-    marks.lib = [[hall + 1400, 50]];
-    marks.ember = [hall + 560];
+    marks.low2 = rim + 240;
+    marks.low3 = slotC - 28;
+    over('spire-a', magma - 30, 104, brand + 150 - (magma - 30));
+    over('spire-b', brand + 190, 104, 620);
+    over('run-a', run - 120, 104, 370);
+    over('run-b', run + 290, 104, 340);
+    over('run-c', run + 670, 104, 330);
+    marks.checks.push(caldera + 20);
   }
 
   const climb = stairs(tier + 1, tier === 1 ? 52 : SHAFT);
@@ -639,18 +953,18 @@ function buildStage(tier) {
   const stageName = names[tier];
   const openLine = [
     '',
-    'Two short hops, then two low steps. No armor and no spark. Hold Space. One hop clears a step. Hold Ctrl or Down to crouch. F confirms.',
-    'Hop the pads. The spark is on the hall before the shaft. One hop will not clear that shaft.',
-    'Jump the pad, then crouch the low roof. Flat ground follows it. Acid that hits the floor stays for a few seconds.',
-    'Ride both bridges first. The low roof is after them, on flat ground. Hold Ctrl or Down.',
-    'Pads, a bridge, then the spark. Crouch the low roof, stand up, then take the high step.',
+    'Short hops across the grass, and the ditches change width. Then two low steps. No armor and no spark. Hold Space. One hop clears a step. Hold Ctrl or Down to crouch. F confirms.',
+    'The pads change height. The spark is on the floor before the shaft. One hop will not clear that shaft.',
+    'Jump the pad, then crouch the low roof. Flat ground follows it. The floor keeps changing after that. Acid that hits the floor stays for a few seconds.',
+    'Two bridges, then a low roof on flat ground. Hold Ctrl or Down. The ice keeps changing after that.',
+    'Pads, a bridge, then the spark. Crouch the low roof, stand up, then take the high step. The peak keeps changing after that.',
   ][tier];
   const signs = [
     { x: 78, text: stageName, once: openLine },
-    { x: 168, text: 'Shield', once: 'Shield. Hold Q. Fireballs from the front bounce off.' },
-    { x: marks.sword, text: 'Sword', once: 'Sword in hand. E cuts a slash. Librarians pace, hop, and spit acid.' },
-    { x: marks.axe, text: 'Axe', once: 'Axe in hand. E chops. The wheel still swaps weapons.' },
-    { x: marks.gun, text: 'Rifle', once: 'Rifle before the gate. E fires. The wheel still swaps weapons.' },
+    { x: 168, text: 'Shield', item: ['shield'], once: 'Shield. Hold Q. Fireballs from the front bounce off.' },
+    { x: marks.sword, text: 'Sword', item: ['blade'], once: 'Sword in hand. E cuts a slash. Librarians pace, hop, and spit acid.' },
+    { x: marks.axe, text: 'Axe', item: ['axe'], once: 'Axe in hand. E chops. The wheel still swaps weapons.' },
+    { x: marks.gun, text: 'Rifle', item: ['gun'], once: 'Rifle before the gate. E fires. The wheel still swaps weapons.' },
     { x: relay.x, y: relay.y, text: 'Relay', once: tier === 1
       ? 'Hemi relay. The two steps are one hop each. F confirms. The spark is on the next rise.'
       : 'Hemi relay. F confirms the block this run started on. The gate on the floor stays shut until then.' },
@@ -669,6 +983,7 @@ function buildStage(tier) {
     signs.push({
       x: marks.spark,
       text: 'Spark',
+      item: ['spark'],
       once: 'Hemi spark. Press Space again in the air. One hop will not clear a tall step. It stays with you after you pick it up.',
     });
   }
@@ -676,6 +991,7 @@ function buildStage(tier) {
     signs.push({
       x: marks.plates,
       text: 'Chest',
+      item: ['goldplate', 'blueplate'],
       once: 'Chest plate only. Gold hits harder. Blue swings and shoots faster. Press I to wear one. Helms are on the last two rises.',
     });
   }
@@ -683,6 +999,7 @@ function buildStage(tier) {
     signs.push({
       x: marks.helm,
       text: 'Helm',
+      item: ['goldhelm'],
       once: 'Gold helm. It adds one damage to the sword and the axe. Press I to look at it. The rise pauses.',
     });
   }
@@ -690,6 +1007,7 @@ function buildStage(tier) {
     signs.push({
       x: marks.helm,
       text: 'Helm',
+      item: ['bluehelm'],
       once: 'Blue helm. You run faster. Press I to look at it. The rise pauses.',
     });
   }
@@ -708,6 +1026,20 @@ function buildStage(tier) {
       once: 'Low roof. Hold Ctrl or Down and walk through. It is not a step.',
     });
   }
+  if (marks.low2) {
+    signs.push({
+      x: marks.low2,
+      text: 'Low',
+      once: 'Low roof again. Hold Ctrl or Down and walk through.',
+    });
+  }
+  if (marks.low3) {
+    signs.push({
+      x: marks.low3,
+      text: 'Low',
+      once: 'Another low roof. Hold Ctrl or Down and walk through.',
+    });
+  }
 
   return {
     zone: zones[tier],
@@ -718,12 +1050,15 @@ function buildStage(tier) {
     items,
     enemies,
     signs,
+    npcs: placeNpcs(platforms, tier, zones[tier], gateX),
     beacons: [{ id: 'hemi', x: relay.x, y: relay.y, label: 'Hemi relay' }],
     relay,
     gate: { x: gateX, y: G - 210, w: 26, h: 210 },
     exit: { x: exitX, w: 90 },
-    checks: [marks.sword - 30, marks.plate - 40, marks.axe - 30, gateX - 200].sort((a, b) => a - b),
-    words: [[220, 760], [marks.plate, 750], [gateX - 30, 760]],
+    length: exitX,
+    stretch: 1 + STAGE_GROWTH[tier],
+    checks: [marks.sword - 30, marks.plate - 40, marks.axe - 30, gateX - 200, ...marks.checks].sort((a, b) => a - b),
+    words: [[220, 760], [marks.plate, 750], [gateX - 30, 760]].concat(wordSpots(exitX)),
   };
 }
 const ZONE_TIER = { hemi: 1, wart: 2, cart: 3, gale: 4, crown: 5 };
@@ -735,6 +1070,169 @@ const ZONE_TITLES = {
   gale: 'Hemi Gale',
   crown: 'Hemi Crown',
 };
+
+// STORY: every word of story text lives here. The hero carries one encrypted page, a secret
+// sealed on the Hemi chain. The Librarians catalogue every page and want it opened. The Hemi
+// block stamp is the seal. {hero} becomes the hero's name. {block} becomes the Hemi block.
+// The text never says what the secret is.
+const STORY = {
+  tagline: 'Keep the page shut. Keep the relay moving.',
+  intro: [
+    'You carry one page. A secret, sealed on the Hemi chain.',
+    'Only you can read it. The Hemi block stamp is the seal.',
+    'The Librarians catalogue every page in every zone. They want yours opened.',
+    'Keep moving. Keep the relay confirmed. Keep the page hidden.',
+  ],
+  // Shown after the first sign when a stage starts.
+  arrive: {
+    hemi: 'Hemi Rise. The first stamp holds. Keep walking.',
+    wart: 'Hemi Span. Stone echoes. Your page feels heavy here.',
+    cart: 'Hemi Deep. The canopy hides you. It hides Librarians too.',
+    gale: 'Hemi Gale. Cold wind, cold ink. The seal does not crack.',
+    crown: 'Hemi Crown. Last peak. Every Librarian knows your block by now.',
+  },
+  // Shown on the map screen after a stage that is not the finale.
+  clear: {
+    hemi: 'Rise is clear. The page is still hidden.',
+    wart: 'Span is clear. Nobody read a word.',
+    cart: 'Deep is clear. The seal held in the dark.',
+    gale: 'Gale is clear. The ice cracked. The seal did not.',
+    crown: 'Crown is clear. The captain is down. The page is still yours.',
+  },
+  // Four standing NPCs. They are not solid, not hurt, and never block the path.
+  npcs: {
+    courier: {
+      name: 'Courier Tam',
+      trait: 'Quick and cheerful. Runs the relay. Never asks what is on the page.',
+      robe: '#2fb8a8', trim: '#ffc94a',
+    },
+    archivist: {
+      name: 'Archivist Quill',
+      trait: 'Old, calm, cryptic. Filed pages before the Librarians did. Secretly on your side.',
+      robe: '#7a5ad0', trim: '#f2f0e6',
+    },
+    apprentice: {
+      name: 'Apprentice Nib',
+      trait: 'A nervous young Librarian. Lets slip what the Librarians know.',
+      robe: '#b9a470', trim: '#4a3a1c',
+    },
+    sentinel: {
+      name: 'Sentinel Ward',
+      trait: 'Stern Hemi guard at the gate. Short sentences. Trusts the chain.',
+      robe: '#8fa6bc', trim: '#ffe7a3',
+    },
+  },
+  // Lines each NPC says on a stage. They cycle each time the hero walks up.
+  stages: {
+    hemi: {
+      courier: [
+        'I run the relay. You run the page. Deal?',
+        'Your page slips loose now and then. Catch it. It glows with the block stamp.',
+      ],
+      apprentice: ['Shh! I am not here. The Librarians file every page. They cannot open yours. Yet.'],
+      sentinel: ['The gate stays shut until the relay says so. Confirm it. Then face the captain.'],
+    },
+    wart: {
+      courier: ['Hop light. A sealed page weighs nothing. A secret weighs a little more.'],
+      archivist: [
+        'Quill. I filed pages before the Librarians did. I know a shut one when I see it.',
+        'Keys, friend. Whoever holds the key holds the meaning. Hold yours.',
+      ],
+      sentinel: ['Every block is a stamp. Every stamp is a seal. Yours is still good.'],
+    },
+    cart: {
+      courier: ['Duck the roofs. Pages bend. They do not break.'],
+      apprentice: [
+        'The captains want your page. The Shard haggles. The Hex lies. I did not say that.',
+        'They cannot read it. They wait for you to lose the relay. So... do not?',
+      ],
+      sentinel: ['Deep is dark. The chain is not. Block after block, it keeps counting.'],
+    },
+    gale: {
+      courier: ['Cold! Ink freezes. Stamps do not. Keep the relay warm.'],
+      archivist: [
+        'Hemi leans on Bitcoin. Once a stamp is final, it is final. Nobody argues with that.',
+        'If a Librarian asks, I never saw you. Keep the secret quiet, too.',
+      ],
+      sentinel: ['Wind, ice, Librarians. None of them move the seal. Finality does not blow away.'],
+    },
+    crown: {
+      courier: ['Last climb. I will hold the door. Bring the page. Leave the Librarians.'],
+      archivist: ['You never had to open it. You only had to keep it yours.'],
+      apprentice: ['They know your block. They do not know your page. I may have helped. A little.'],
+      sentinel: ['One captain waits, {hero}. Win, and the page stays hidden. Lose, and try again. It is still safe.'],
+    },
+  },
+  // The two Librarian captains. Shard (even block) bargains. Hex (odd block) tricks.
+  // pre plays when the hero walks through the open gate. down plays when the captain drops.
+  // Each list is read by stage: Rise and Gale first, then Span and Crown, and so on.
+  captains: {
+    shard: {
+      pre: [
+        'One peek. Name your price. Gold, rank, a quiet hall.',
+        'Everyone has a price, {hero}. Name yours. I pay in pages.',
+        'Last offer. Open it for me and I walk away. Fair deal.',
+      ],
+      down: [
+        'Fine. Keep your page. My offer stands.',
+        'No deal, then. Good seal.',
+        'You never even blinked. I should have bid higher.',
+      ],
+    },
+    hex: {
+      pre: [
+        'Psst. The Archivist sent me. Read me the page. He will understand.',
+        'Your relay is broken. Check it. No, look away. Look!',
+        'Just the first word. It is a game. Everybody plays.',
+      ],
+      down: [
+        'Ow. That was not a trick. That was rude.',
+        'Fine. It was a lie. Most of it.',
+        'You cannot be fooled. How dull.',
+      ],
+    },
+  },
+  // The glowing page you catch. It is stamped with the run's Hemi block.
+  page: [
+    'Caught it. Hemi #{block} is stamped on the page. Still sealed.',
+    'Hemi #{block} seals the leaf. Nobody reads it.',
+    'Stamped Hemi #{block}. The seal is final.',
+  ],
+  pageQuiet: 'Caught it. Hemi is quiet, but the page stays sealed.',
+  // Shown on the map screen after the last stage unlocks Orami, and after Crown for either hero.
+  win: {
+    hemigo: 'All five stages are clear. The Librarians file one word: UNREADABLE. Hemigo keeps the secret, sealed under Hemi and final as Bitcoin. Orami wakes at the gate. Another keeper for the page.',
+    orami: 'Orami carries the page now. Fire for any hand that reaches. The seal is Hemi, final as Bitcoin. The Librarians file one word: UNREADABLE.',
+  },
+  // Replaces the old out-of-marks line. It keeps the -500 and the checkpoint.
+  retry: [
+    'Out of marks. -500. The page is still hidden. Back at the last checkpoint.',
+    'Out of marks. -500. They never opened it. Back at the last checkpoint.',
+    'Out of marks. -500. The seal held. Back at the last checkpoint.',
+  ],
+};
+
+// Where each NPC stands: [npc, platform id, offset from its left edge]. 'gate' is relative to the gate.
+// All of them are on flat ground, away from signs, items, and patrols.
+const STORY_SPOTS = {
+  1: [['courier', 'b', 200], ['apprentice', 'lip', 90], ['sentinel', 'gate', -110]],
+  2: [['archivist', 'watch', 40], ['courier', 'approach', 90], ['sentinel', 'gate', -110]],
+  3: [['courier', 'clear', 200], ['apprentice', 'after', 250], ['sentinel', 'gate', -110]],
+  4: [['courier', 'far', 260], ['archivist', 'rim', 160], ['sentinel', 'gate', -110]],
+  5: [['courier', 'stand', 200], ['archivist', 'ash', 180], ['apprentice', 'caldera', 200], ['sentinel', 'gate', -110]],
+};
+
+function placeNpcs(platforms, tier, zone, gateX) {
+  const lines = STORY.stages[zone] || {};
+  const cast = [];
+  for (const [who, at, off] of STORY_SPOTS[tier] || []) {
+    const plat = platforms.find((p) => p.id === at);
+    const x = at === 'gate' ? gateX + off : plat ? plat.x + off : null;
+    if (x === null || !lines[who]) continue;
+    cast.push({ who, name: STORY.npcs[who].name, x, lines: lines[who], turn: 0, armed: true, quiet: 0 });
+  }
+  return cast;
+}
 
 function readWear() {
   try {
@@ -1100,6 +1598,8 @@ function startGame(zoneId) {
     pops: [],
     stamp,
     toastUntil: 0,
+    storyUntil: 0,
+    say: [],
     lastToast: '',
     lastToastAt: 0,
     prompt: '',
@@ -1135,6 +1635,7 @@ function startGame(zoneId) {
       ? ' What you picked up is still with you.'
       : ` The sword is ahead on ${level.name}.`;
   toast(`${stamped}. A ${bossName} waits behind the gate.${gearLine}`);
+  if (STORY.arrive[zone]) state.say.push(STORY.arrive[zone]);
 }
 
 const CLEAR_KEY = 'relay-zone-clears';
@@ -1329,6 +1830,7 @@ function dressOrami(level) {
   for (const sign of level.signs) {
     if (sign.text === 'Axe') {
       sign.text = 'Fireball';
+      sign.item = ['bolt'];
       sign.once = 'Fireball. Pick it up. E shoots. The wheel swaps back to the fire slash.';
     }
     if (sign.text === 'Sword') sign.once = 'Orami leaves the sword. E cuts a fire slash.';
@@ -1338,6 +1840,15 @@ function dressOrami(level) {
 function itemMeta(id) {
   if (id === 'bolt') return { id: 'bolt', name: 'Fireball', src: 'assets/orami/fireball.png', arm: 'bolt' };
   return ALL_META.find((entry) => entry.id === id);
+}
+
+// A signpost that marks a pickup stops drawing once every item it marks is in the bag (or left behind on purpose).
+function signGone(sign) {
+  if (!sign.item) return false;
+  return sign.item.every((id) => {
+    const found = state.level.items.find((item) => item.id === id);
+    return !found || found.got || !!(state.skipped && state.skipped[id]);
+  });
 }
 
 function signOnce(sign) {
@@ -1430,16 +1941,71 @@ function showSelect(note) {
   }
 }
 
-function toast(msg) {
+const TOAST_MS = 2600;
+
+// Story lines (NPCs, the arrival line, the boss's gate line) stay up longer than other toasts, and longer lines
+// stay up longer still: 3900 ms up to about 40 characters, then 38 ms per extra character, capped at 7000 ms.
+function storyMs(msg) {
+  return Math.min(7000, Math.max(TOAST_MS * 1.5, 2200 + msg.length * 38));
+}
+
+function toast(msg, ms = TOAST_MS) {
   const now = performance.now();
   if (state && state.lastToast === msg && now - state.lastToastAt < 1400) return;
   if (state) {
     state.lastToast = msg;
     state.lastToastAt = now;
-    state.toastUntil = now + 2600;
+    state.toastUntil = now + ms;
+    state.storyUntil = ms > TOAST_MS ? now + ms : 0;
   }
   el.toast.textContent = msg;
   el.toast.classList.add('show');
+}
+
+function storyToast(msg) {
+  toast(msg, storyMs(msg));
+}
+
+// Story helpers. NPC talk reuses toast(); NPCs are not solid and are never in level.enemies.
+function sayLine(text, extra) {
+  const hero = state?.hero?.name || 'Hemigo';
+  return text.replace(/\{hero\}/g, hero).replace(/\{block\}/g, extra?.block ?? '');
+}
+
+function retryLine() {
+  state.lost = (state.lost || 0) + 1;
+  return STORY.retry[(state.lost - 1) % STORY.retry.length];
+}
+
+function captainLine(boss, kind) {
+  const set = STORY.captains[boss.parity === 'odd' ? 'hex' : 'shard'][kind];
+  const line = set[((state.level.tier || 1) - 1) % set.length];
+  return `${boss.name}: ${sayLine(line)}`;
+}
+
+function runStory(player) {
+  const now = performance.now();
+  if (state.say?.length && !state.toastUntil) storyToast(state.say.shift());
+  const mid = player.x + player.w / 2;
+  const foot = player.y + player.h;
+  for (const npc of state.level.npcs || []) {
+    const near = Math.abs(mid - npc.x) < 50 && Math.abs(foot - G) < 80;
+    if (!near) {
+      npc.armed = true;
+      continue;
+    }
+    if (!npc.armed || now < npc.quiet || now - state.lastToastAt < 1000 || now < (state.storyUntil || 0)) continue;
+    npc.armed = false;
+    const line = `${npc.name}: ${sayLine(npc.lines[npc.turn % npc.lines.length])}`;
+    npc.quiet = now + Math.max(5000, storyMs(line) + 2000);
+    storyToast(line);
+    npc.turn += 1;
+  }
+  const boss = state.level.enemies.find((enemy) => enemy.kind === 'boss' && enemy.hp > 0);
+  if (boss && state.sealOpen && !state.level.bossTalk && mid > state.level.gate.x + 30 && now - state.lastToastAt > 600 && now >= (state.storyUntil || 0)) {
+    state.level.bossTalk = true;
+    storyToast(captainLine(boss, 'pre'));
+  }
 }
 
 function renderHud() {
@@ -1645,7 +2211,7 @@ function attackBox(body) {
 }
 
 function downedLine(enemy) {
-  if (enemy.kind === 'boss') return `${enemy.name} drops. The door is open.`;
+  if (enemy.kind === 'boss') return `${captainLine(enemy, 'down')} The door is open.`;
   if (enemy.plated) return 'The librarian drops. The hall is open.';
   return `${enemy.name || 'Librarian'} down.`;
 }
@@ -1824,7 +2390,7 @@ function hurt(fromX) {
       player.vx = dir * 70;
       return;
     }
-    respawn('Out of marks. -500. Back at the last checkpoint.');
+    respawn(retryLine());
   }
 }
 
@@ -1949,7 +2515,7 @@ function tryUse() {
 
   if (near(relay.x, relay.y, relay.r)) {
     if ((state.level.tier || 1) > 1 && !state.inv.spark) {
-      toast('The relay is dark. The Hemi spark is on the hall floor.');
+      toast('The relay is dark. The Hemi spark is on the floor before the shaft.');
       return;
     }
     if (!state.powered) {
@@ -1977,7 +2543,9 @@ function takePage() {
   page.got = true;
   addScore(page.worth, page.x, page.y);
   const stamp = state.stamp;
-  const witness = stamp?.block ? `Hemi #${stamp.block}.` : 'Hemi is quiet.';
+  const witness = stamp?.block
+    ? sayLine(STORY.page[stamp.slot % STORY.page.length], { block: stamp.block })
+    : STORY.pageQuiet;
   toast(`Page gathered. ${witness}`);
 }
 
@@ -2165,7 +2733,7 @@ function update(dt) {
     player.downT -= dt;
     if (player.downT <= 0) {
       player.downT = 0;
-      respawn('Out of marks. -500. Back at the last checkpoint.');
+      respawn(retryLine());
       return;
     }
   } else {
@@ -2531,6 +3099,7 @@ function update(dt) {
     }
   }
   takePage();
+  runStory(player);
 
   for (const sign of state.level.signs) {
     if (sign.shown) continue;
@@ -2718,7 +3287,7 @@ function driveBot(dt) {
     state.stuckX = player.x;
   }
   const done = state.mode === 'win';
-  const failed = state.simT > 175 && !done;
+  const failed = state.simT > 175 * (state.level.stretch || 1) && !done;
   if (done || failed || state.stuckT > 12) {
     finishSim(done ? 'win' : 'stuck');
   }
@@ -2776,9 +3345,10 @@ function win() {
   if (!state || state.mode === 'win') return;
   const zone = state.zone;
   state.mode = 'win';
-  const bonus = Math.max(120, 1000 - Math.floor(state.time * 8));
+  const bonus = Math.max(120, 1000 - Math.floor((state.time * 8) / (state.level.stretch || 1)));
   state.score += bonus;
   noteBest(state.score);
+  const wasOpen = oramiUnlocked();
   markClear(zone);
   if (qs.get('sim') && qs.get('sim') !== 'return') {
     finishSim('win');
@@ -2792,9 +3362,11 @@ function win() {
       : '';
   const scored = ` Score ${state.score}.${pageBit}`;
   const ahead = nextStageName(zone);
-  const note = ahead
+  const finale = oramiUnlocked() && (!wasOpen || zone === 'crown');
+  const tale = finale ? (STORY.win[state.hero.id] || STORY.win.hemigo) : STORY.clear[zone];
+  const note = `${tale} ` + (ahead
     ? `The gate is open. ${line} ${ahead} is on the map.${scored} Nothing was signed or spent.`
-    : `${clearedTitle(zone)} is clear. ${line} The gate brought you back.${scored} Nothing was signed or spent.`;
+    : `${clearedTitle(zone)} is clear. ${line} The gate brought you back.${scored} Nothing was signed or spent.`);
   showSelect(note);
 }
 
@@ -3234,12 +3806,14 @@ function draw() {
   }
 
   for (const sign of state.level.signs) {
+    if (signGone(sign)) continue;
     const sy = (sign.y || G) - 46;
     ctx.fillStyle = theme.bar;
     ctx.fillRect(sign.x - 1, sy + 10, 2, 36);
     label(sign.x - 18, sy, sign.text);
   }
 
+  drawNpcs();
   drawPage(state.level.page);
 
   const bob = Math.sin(state.time * 3) * 3;
@@ -3430,6 +4004,53 @@ function label(x, y, text) {
   ctx.fillRect(x - 2, y - 8, text.length * 5 + 4, 11);
   ctx.fillStyle = '#ffe7a3';
   ctx.fillText(text, x, y);
+}
+
+// Small standing figures for the story NPCs. Pure drawing: no hitbox, no collision.
+function drawNpcs() {
+  const player = state.player;
+  for (const npc of state.level.npcs || []) {
+    const look = STORY.npcs[npc.who];
+    const face = player.x + player.w / 2 < npc.x ? -1 : 1;
+    const x = Math.round(npc.x + (npc.who === 'apprentice' && Math.sin(state.time * 25) > 0.8 ? 1 : 0));
+    const base = G;
+    const head = base - 30 + Math.round(Math.sin(state.time * 2 + npc.x));
+    ctx.fillStyle = '#1c1c2a';
+    ctx.fillRect(x - 6, base - 6, 4, 6);
+    ctx.fillRect(x + 2, base - 6, 4, 6);
+    ctx.fillStyle = look.robe;
+    ctx.fillRect(x - 8, base - 21, 16, 16);
+    ctx.fillStyle = look.trim;
+    ctx.fillRect(x - 8, base - 12, 16, 2);
+    ctx.fillStyle = '#f0c8a0';
+    ctx.fillRect(x - 5, head, 10, 9);
+    ctx.fillStyle = '#1c1c2a';
+    ctx.fillRect(x + face * 2 - 1, head + 3, 2, 2);
+    ctx.fillStyle = look.trim;
+    if (npc.who === 'courier') {
+      ctx.fillRect(x - 6, head - 3, 12, 4);
+      ctx.fillRect(x - 8, base - 20, 3, 14);
+    } else if (npc.who === 'archivist') {
+      ctx.fillStyle = look.robe;
+      ctx.fillRect(x - 6, head - 4, 12, 5);
+      ctx.fillStyle = look.trim;
+      ctx.fillRect(x - 4, head + 6, 8, 6);
+    } else if (npc.who === 'apprentice') {
+      ctx.fillRect(x - 5, head + 2, 4, 3);
+      ctx.fillRect(x + 1, head + 2, 4, 3);
+      ctx.fillRect(x + face * 8, base - 16, 5, 7);
+    } else {
+      ctx.fillStyle = '#c4d2e0';
+      ctx.fillRect(x - 6, head - 3, 12, 6);
+      ctx.fillStyle = look.trim;
+      ctx.fillRect(x - 1, head - 8, 3, 5);
+      ctx.fillStyle = '#c4d2e0';
+      ctx.fillRect(x + face * 11, base - 40, 2, 40);
+      ctx.fillStyle = look.trim;
+      ctx.fillRect(x + face * 11 - 1, base - 44, 4, 4);
+    }
+    label(x - look.name.length * 2.5, base - (npc.who === 'sentinel' ? 52 : 40), look.name);
+  }
 }
 
 function imgBox(img) {
@@ -4190,6 +4811,16 @@ function boot() {
   el.startCart?.addEventListener('click', () => startGame('cart'));
   el.startGale?.addEventListener('click', () => startGame('gale'));
   el.startCrown?.addEventListener('click', () => startGame('crown'));
+  const tagline = document.getElementById('story-tagline');
+  const intro = document.getElementById('story-intro');
+  if (tagline) {
+    tagline.textContent = STORY.tagline;
+    tagline.hidden = false;
+  }
+  if (intro) {
+    intro.textContent = STORY.intro.join(' ');
+    intro.hidden = false;
+  }
   renderZonePicks();
   paintBest();
   el.again.addEventListener('click', () => startGame(state?.zone || 'hemi'));
@@ -4326,7 +4957,7 @@ function boot() {
   if (qs.get('shot') === 'zone') startGame(qs.get('zone') || 'hemi');
   if (qs.get('sim') === '1') {
     startGame(qs.get('zone') || 'hemi');
-    for (let i = 0; i < 180 * 60 && !state.simDone; i += 1) update(1 / 60);
+    for (let i = 0; i < 330 * 60 && !state.simDone; i += 1) update(1 / 60);
     if (!state.simDone) finishSim('timeout');
   }
   if (qs.get('sim') === 'bag') runBagTest();
@@ -4623,7 +5254,7 @@ function runAcidTest() {
 
 function routeJumps(level) {
   const plats = level.platforms
-    .filter((plat) => plat.oneWay && !plat.slide && !/^h\d+$/.test(plat.id))
+    .filter((plat) => plat.oneWay && !plat.slide && !plat.loft && !/^h\d+$/.test(plat.id))
     .sort((a, b) => a.x - b.x);
   const jumps = [];
   for (let i = 1; i < plats.length; i += 1) {
@@ -4645,7 +5276,7 @@ function crouchSlotOk(level) {
 
 function crouchLeads(level) {
   const floors = level.platforms
-    .filter((plat) => plat.oneWay && !plat.slide && !/^h\d+$/.test(plat.id))
+    .filter((plat) => plat.oneWay && !plat.slide && !plat.loft && !/^h\d+$/.test(plat.id))
     .sort((a, b) => a.x - b.x);
   return level.platforms.filter((ceil) => ceil.kind === 'ceil').every((ceil) => {
     let x = ceil.x + ceil.w;
@@ -4660,6 +5291,38 @@ function crouchLeads(level) {
     }
     return clear >= 180;
   });
+}
+
+function routeVaried(level) {
+  const slabs = level.platforms.filter((plat) => (
+    plat.oneWay && !plat.slide && !plat.loft && plat.id !== 'arena' && !/^h\d+$/.test(plat.id)
+  ));
+  const longest = Math.max(...slabs.map((plat) => plat.w));
+  return longest < level.exit.x * 0.2;
+}
+
+function lootOnGround(level) {
+  return level.items.every((item) => level.platforms.some((plat) => (
+    plat.oneWay && !plat.slide && plat.y === G
+    && item.x >= plat.x + 6 && item.x <= plat.x + plat.w - 6
+  )));
+}
+
+function patrolsOnGround(level) {
+  return level.enemies.every((enemy) => {
+    if (enemy.kind === 'flyer' || enemy.kind === 'turret') return true;
+    const minX = enemy.minX ?? enemy.x;
+    const maxX = enemy.maxX ?? (enemy.x + (enemy.w || 0));
+    return level.platforms.some((plat) => (
+      plat.oneWay && !plat.slide && plat.y === G
+      && minX >= plat.x - 2 && maxX <= plat.x + plat.w + 2
+    ));
+  });
+}
+
+function fightsSpread(level) {
+  const xs = level.enemies.map((enemy) => enemy.x).sort((a, b) => a - b);
+  return xs.every((x, index) => index === 0 || x - xs[index - 1] >= 140);
 }
 
 function fightsClear(level) {
@@ -4710,14 +5373,25 @@ function runMapTest() {
     && ferryReaches(levels[4])
     && levels[4].platforms.filter((plat) => plat.slide).length >= 2;
   const longer = exits.every((x, index) => index === 0 || x > exits[index - 1]);
+  const grown = exits.every((x, index) => x === stageExit(index + 1))
+    && exits[0] >= 4906 * 1.2 - 1 && exits[1] >= 6508 * 1.3 - 1 && exits[2] >= 7788 * 1.4 - 1
+    && exits[3] >= 9460 * 1.5 - 1 && exits[4] >= 12034 * 1.7 - 1;
+  const broken = levels.every(routeVaried);
+  const placed = levels.every((level) => lootOnGround(level) && patrolsOnGround(level) && fightsSpread(level));
+  const hopCount = jumps.map((list) => list.length);
+  const hopped = hopCount[0] >= 6 && hopCount[1] >= 10 && hopCount[2] >= 8
+    && hopCount[3] >= 8 && hopCount[4] >= 10;
+  const roster = levels.map((level) => level.enemies.length).join() === '6,8,8,9,12';
   const shaftCount = shafts.join() === '2,3,4,5,6';
   const flyers = levels.map((level) => level.enemies.filter((enemy) => enemy.kind === 'flyer'));
   const armed = flyers[2].length === 2 && flyers[2].every((enemy) => !enemy.shoot)
-    && flyers[3].length === 2 && flyers[3].every((enemy) => enemy.shoot)
-    && flyers[4].length === 3 && flyers[4].every((enemy) => enemy.shoot);
+    && flyers[3].length === 3 && flyers[3].every((enemy) => enemy.shoot)
+    && flyers[4].length === 5 && flyers[4].every((enemy) => enemy.shoot);
   const different = jumps.map((list) => list.map((jump) => `${jump.gap}:${jump.rise}`).join('|'))
     .every((sig, index, all) => all.indexOf(sig) === index);
-  const checks = { porch, riseHop, t1, t2, t3, t4, t5, longer, shaftCount, armed, different };
+  const checks = {
+    porch, riseHop, t1, t2, t3, t4, t5, longer, grown, broken, placed, hopped, roster, shaftCount, armed, different,
+  };
   const ok = Object.values(checks).every(Boolean);
   const report = { status: ok ? 'maps-ok' : 'maps-bad', ...checks, exits, jumps };
   document.body.dataset.status = report.status;
@@ -4992,8 +5666,8 @@ function runGaleTest() {
   const galeFlyers = flyersOf(4);
   const crownFlyers = flyersOf(5);
   const armed = early.length === 2 && early.every((enemy) => !enemy.shoot)
-    && galeFlyers.length === 2 && galeFlyers.every((enemy) => enemy.shoot)
-    && crownFlyers.length === 3 && crownFlyers.every((enemy) => enemy.shoot);
+    && galeFlyers.length === 3 && galeFlyers.every((enemy) => enemy.shoot)
+    && crownFlyers.length === 5 && crownFlyers.every((enemy) => enemy.shoot);
   startGame('gale');
   const slides = state.level.platforms.filter((plat) => plat.slide);
   const x0 = slides[0]?.x;

@@ -11,6 +11,8 @@ Language: JavaScript (Astro, canvas). No Solidity.
 What it is
 A free five-stage side runner. You pick Hemigo, then clear Hemi Rise, Hemi Span, Hemi Deep, Hemi Gale, and Hemi Crown. Orami stays locked until all five are clear. Each stage changes the ground: short hops, raised pads, a low roof you have to crouch under, sliding bridges, then a taller step. Weapons and armor you pick up stay with you. A Shard or a Hex waits behind the gate. The door opens when that boss drops.
 
+Story: the hero carries one encrypted page, a secret sealed on the Hemi chain. The Librarians want it opened, and the Hemi block stamp is the seal. The Shard (even block) tries to bargain for it. The Hex (odd block) tries to trick it out. Four NPCs along the stages tell the tale. The secret is never shown.
+
 Entry requirements
 
 Free to play: Yes.
